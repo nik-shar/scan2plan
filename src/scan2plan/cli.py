@@ -23,8 +23,10 @@ import typer
 from scan2plan import __version__
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import load_config
+from scan2plan.geometry import extract_room
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
+from scan2plan.render import render_room_svg
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -108,6 +110,26 @@ def run(
         typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
         raise typer.Exit(code=NOT_IMPLEMENTED_EXIT) from exc
 
+    # S3 geometry (single-room) + S9 render. Degenerate clouds emit a recon-only
+    # plan rather than failing hard (results-out policy, plan 04 section 3).
+    recon = cir.recon
+    points = np.load(out_dir / str(recon.points_ref))["points"].astype(np.float64)
+    try:
+        geom = extract_room(points, tier=cir.session.tier, seed=cfg.seed, room_id="room_0")
+    except ValueError as exc:
+        typer.secho(
+            f"  geometry: {exc}; emitting recon-only plan", fg=typer.colors.YELLOW, err=True
+        )
+        geom = None
+    if geom is not None:
+        cir.rooms = [geom.room]
+        cir.surfaces = geom.surfaces
+        cir.openings = geom.openings
+        cir.measures = geom.measures
+        svg_path: Path | None = render_room_svg(geom, out_dir / "plan.svg", title=cir.session.id)
+    else:
+        svg_path = None
+
     plan_path = out_dir / "plan.json"
     plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
     errors = validate_plan(json.loads(plan_path.read_text()))
@@ -116,19 +138,27 @@ def run(
             typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
-    recon = cir.recon
-    n_points = int(np.load(out_dir / str(recon.points_ref))["points"].shape[0])
     quality = recon.quality
     typer.echo(f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)}")
     typer.echo(
-        f"  recon: points={n_points} track_len={int(quality.track_len or 0)} "
+        f"  recon: points={points.shape[0]} track_len={int(quality.track_len or 0)} "
         f"coverage={quality.coverage} plane_rms={quality.plane_rms}"
     )
     typer.echo(f"  scale_source={recon.scale_source}")
+    if geom is not None:
+        area = geom.room.floor_area
+        ceil = geom.room.ceiling_height
+        area_txt = "n/a" if area is None else f"{area.value:.2f} m2"
+        ceil_txt = "n/a" if ceil is None else f"{ceil.value:.2f} m"
+        n_walls = sum(1 for s in geom.surfaces if s.type == "wall")
+        typer.echo(
+            f"  room: area={area_txt} ceiling={ceil_txt} walls={n_walls} "
+            f"openings={len(geom.openings)}"
+        )
     typer.echo(f"  wrote {plan_path}")
-    typer.echo(
-        "  note: geometry/stitch/damage stages (S3+) are pending (M3+); plan.json is partial."
-    )
+    if svg_path is not None:
+        typer.echo(f"  wrote {svg_path}")
+    typer.echo("  note: stitch/damage/scope stages (S4-S8) are pending (M4+).")
 
 
 @app.command()
