@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -76,8 +77,24 @@ def test_report_reports_pending() -> None:
     assert result.exit_code == NOT_IMPLEMENTED_EXIT
 
 
-def test_validate_reports_pending(tmp_path: Path) -> None:
+def test_validate_accepts_valid_plan(tmp_path: Path, valid_plan_dict: dict) -> None:
     plan = tmp_path / "plan.json"
-    plan.write_text("{}")
+    plan.write_text(json.dumps(valid_plan_dict))
     result = runner.invoke(app, ["validate", str(plan)])
-    assert result.exit_code == NOT_IMPLEMENTED_EXIT
+    assert result.exit_code == 0
+    assert "valid" in result.output.lower()
+
+
+def test_validate_rejects_invalid_plan(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.json"
+    plan.write_text("{}")  # missing required session/provenance
+    result = runner.invoke(app, ["validate", str(plan)])
+    assert result.exit_code == 1
+
+
+def test_validate_rejects_broken_reference(tmp_path: Path, valid_plan_dict: dict) -> None:
+    valid_plan_dict["damages"][0]["surface_id"] = "ghost"
+    plan = tmp_path / "plan.json"
+    plan.write_text(json.dumps(valid_plan_dict))
+    result = runner.invoke(app, ["validate", str(plan)])
+    assert result.exit_code == 1
