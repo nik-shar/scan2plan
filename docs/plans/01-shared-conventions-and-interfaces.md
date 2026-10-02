@@ -39,13 +39,17 @@ Every other plan conforms to this doc. If any plan needs a different convention,
 | Frame | Convention | Source |
 |---|---|---|
 | `world` (ARKit) | right-handed, **Y-up**, gravity-aligned, origin = session start | `odometry.csv` positions |
-| `camera` | ARKit camera: **+X right, +Y up, −Z forward** | intrinsics in `camera_matrix.csv` |
+| `camera` | pinhole (depth back-projection): **+X right, +Y down, +Z forward** — see ADR-0002 | `odometry.csv` poses + `camera_matrix.csv` |
 | `room` | per-room local, Z-up, floor plane at z=0 | produced by `04c` |
 | `plan` | 2D stitched, metres, axes = stitched world XY | produced by `04d` |
 
 Pose in `odometry.csv` = `(x,y,z, qx,qy,qz,qw)` = **camera→world** `T_wc`. Quaternion order is **xyzw**.
 Intrinsics `K` apply to the **1920×1440** RGB frame; depth is **256×192** ⇒ always resize depth and scale
 `K` by `(256/1920, 192/1440)` before back-projection.
+
+**Pixel→ray mapping (verified by B-0, see ADR-0002):** `X=(u−cx)·Z/fx, Y=(v−cy)·Z/fy, Z=depth` — that is,
+camera **+Y down, +Z forward** for back-projection. (The "+Y up, −Z forward" phrasing describes the ARKit
+*view* frame only.) Implemented in `util/frames.py::depth_to_points`.
 
 ## 5. Measurement + uncertainty (owned by `04f`, referenced here)
 
@@ -103,3 +107,4 @@ whether on-device or fetched. No undisclosed dependency may influence a reported
 | Interface | Version | Change | Date |
 |---|---|---|---|
 | I1 | 1.0 | initial, matches seed captures | 2026-08 |
+| I7 | 1.1 | camera pixel→ray convention pinned to pinhole (+Y down, +Z forward) via B-0 (ADR-0002) | 2026-10 |
