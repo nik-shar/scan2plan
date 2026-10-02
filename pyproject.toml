@@ -16,12 +16,15 @@ dependencies = [
   "numpy>=1.26",
   "pillow>=10.0",
   "jsonschema>=4.21",
+  # S4 stitch/drift (plan 04d): pose-graph optimizer + polygon overlap checks.
+  "scipy>=1.11",
+  "shapely>=2.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10", "types-PyYAML>=6.0", "types-jsonschema>=4.25"]
 cli = ["typer>=0.12"]
-pipeline = ["scipy>=1.11", "shapely>=2.0", "opencv-python>=4.9", "open3d>=0.18"]
+pipeline = ["opencv-python>=4.9", "open3d>=0.18"]
 render = ["svgwrite>=1.4", "matplotlib>=3.8"]
 
 [project.scripts]
