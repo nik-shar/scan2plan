@@ -17,11 +17,14 @@ import json
 from pathlib import Path
 from typing import Annotated, NoReturn
 
+import numpy as np
 import typer
 
 from scan2plan import __version__
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import load_config
+from scan2plan.ingest import ingest_capture, load_bundle
+from scan2plan.recon import UnsupportedTierError, run_recon
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -83,11 +86,49 @@ def run(
         Path | None,
         typer.Option("--out", "-o", help="Output dir (default: config.output_dir)."),
     ] = None,
+    stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
+    voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Run the full pipeline S1..S9 on one capture (one command per capture)."""
+    """Run ingest + recon (S1+S2) on one capture and write a schema-valid plan.json.
+
+    Geometry/stitch/damage stages (S3+) land at M3+; for now ``run`` emits a CIR with
+    session + frames + recon (LiDAR tier only).
+    """
     cfg = load_config(config, output_dir=str(out) if out is not None else None)
-    logger.info("run capture=%s tier=%s out=%s", capture_dir, cfg.tier, cfg.output_dir)
-    _pending("04g", "run (ingest -> ... -> output)")
+    bundle = load_bundle(capture_dir)
+    cir = ingest_capture(capture_dir, cfg)
+    out_dir = Path(cfg.output_dir) / bundle.capture_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        cir.recon = run_recon(
+            Path(capture_dir), cir, cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100.0
+        )
+    except UnsupportedTierError as exc:
+        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=NOT_IMPLEMENTED_EXIT) from exc
+
+    plan_path = out_dir / "plan.json"
+    plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
+    errors = validate_plan(json.loads(plan_path.read_text()))
+    if errors:
+        for err in errors:
+            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    recon = cir.recon
+    n_points = int(np.load(out_dir / str(recon.points_ref))["points"].shape[0])
+    quality = recon.quality
+    typer.echo(f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)}")
+    typer.echo(
+        f"  recon: points={n_points} track_len={int(quality.track_len or 0)} "
+        f"coverage={quality.coverage} plane_rms={quality.plane_rms}"
+    )
+    typer.echo(f"  scale_source={recon.scale_source}")
+    typer.echo(f"  wrote {plan_path}")
+    typer.echo(
+        "  note: geometry/stitch/damage stages (S3+) are pending (M3+); plan.json is partial."
+    )
 
 
 @app.command()
@@ -97,11 +138,20 @@ def ingest(
         typer.Argument(exists=True, file_okay=False, help="Capture bundle (I1) directory."),
     ],
     config: Annotated[Path | None, _CONFIG_OPTION] = None,
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Output dir (default: config.output_dir)."),
+    ] = None,
 ) -> None:
     """Ingest one capture bundle into the CIR (stage S1 only)."""
-    cfg = load_config(config)
-    logger.info("ingest capture=%s tier=%s", capture_dir, cfg.tier)
-    _pending("04b", "ingest (S1)")
+    cfg = load_config(config, output_dir=str(out) if out is not None else None)
+    bundle = load_bundle(capture_dir)
+    cir = ingest_capture(capture_dir, cfg)
+    out_dir = Path(cfg.output_dir) / bundle.capture_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "cir.json"
+    path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
+    typer.echo(f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)} -> {path}")
 
 
 @app.command()

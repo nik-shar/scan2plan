@@ -6,11 +6,11 @@ interval on every measurement.
 
 Applied AI Engineer case study submission (Aug 2026).
 
-> **Status: M2 (CIR + schema frozen).** Repo scaffold, config (I4), utilities, the
-> CLI skeleton (I5), the frozen CIR (I2), the published output schema (I3), and the
-> B-0 depth-unit verification (millimetres, **confirmed**) are in place.
-> `scan2plan validate` is fully implemented; the reconstruction/geometry/stitch/
-> damage stages (S1–S9) land at M1/M3+. See `docs/plans/`.
+> **Status: M1–M2 (ingest+recon + frozen CIR/schema).** Repo scaffold, config (I4),
+> utilities, CLI (I5), frozen CIR (I2), published schema (I3), and the confirmed B-0
+> depth-unit check are in place. `scan2plan validate`, `scan2plan ingest` (S1) and
+> `scan2plan run` (S1+S2, LiDAR tier) are implemented and emit a schema-valid
+> `plan.json`; geometry/stitch/damage stages (S3+) land at M3+. See `docs/plans/`.
 
 ## Interfaces (frozen contracts)
 
