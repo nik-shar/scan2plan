@@ -21,12 +21,14 @@ import numpy as np
 import typer
 
 from scan2plan import __version__
+from scan2plan.cir import CIR
 from scan2plan.cir.validate import validate_plan
-from scan2plan.config import load_config
-from scan2plan.geometry import extract_room
+from scan2plan.config import Config, load_config
+from scan2plan.geometry import RoomGeometry, extract_room
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
 from scan2plan.render import render_room_svg
+from scan2plan.stitch import run_ablation, run_stitch
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -77,6 +79,68 @@ def _pending(owner: str, stage: str) -> NoReturn:
     raise typer.Exit(code=NOT_IMPLEMENTED_EXIT)
 
 
+def _pipeline_s1_s3(
+    capture_dir: Path,
+    cfg: Config,
+    out_dir: Path,
+    *,
+    stride: int,
+    voxel_m: float,
+) -> tuple[CIR, RoomGeometry | None]:
+    """S1 ingest -> S2 recon -> S3 single-room geometry (shared by run/ablate).
+
+    Degenerate clouds produce a recon-only CIR (geom=None) rather than failing
+    hard (results-out policy, plan 04 section 3).
+    """
+    cir = ingest_capture(capture_dir, cfg)
+    try:
+        cir.recon = run_recon(capture_dir, cir, cfg, out_dir, stride=stride, voxel_m=voxel_m)
+    except UnsupportedTierError as exc:
+        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=NOT_IMPLEMENTED_EXIT) from exc
+
+    assert cir.recon.points_ref is not None
+    points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
+    try:
+        geom = extract_room(points, tier=cir.session.tier, seed=cfg.seed, room_id="room_0")
+    except ValueError as exc:
+        typer.secho(
+            f"  geometry: {exc}; emitting recon-only plan", fg=typer.colors.YELLOW, err=True
+        )
+        return cir, None
+    cir.rooms = [geom.room]
+    cir.surfaces = geom.surfaces
+    cir.openings = geom.openings
+    cir.measures = geom.measures
+    return cir, geom
+
+
+def _resolve_capture_dir(capture: str) -> Path:
+    """Resolve ``--capture``: an existing directory, or a capture id (cap_<8hex>).
+
+    Ids are looked up one level deep (``<group>/<capture_id>``, interface I1) in
+    the working directory and in ``bench/data``.
+    """
+    p = Path(capture)
+    if p.is_dir():
+        return p
+    cid = capture.removeprefix("cap_")
+    matches = sorted(
+        m
+        for root in (Path.cwd(), Path.cwd() / "bench" / "data")
+        for m in root.glob(f"*/{cid}")
+        # Only I1 bundles count (an out/<id>/ dir from a previous run does not).
+        if m.is_dir() and (m / "odometry.csv").is_file()
+    )
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        typer.secho(f"capture '{capture}' not found (no directory or bundle id)", err=True)
+    else:
+        typer.secho(f"capture id '{capture}' is ambiguous: {matches}", err=True)
+    raise typer.Exit(code=2)
+
+
 @app.command()
 def run(
     capture_dir: Annotated[
@@ -91,44 +155,29 @@ def run(
     stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
     voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Run ingest + recon (S1+S2) on one capture and write a schema-valid plan.json.
+    """Run S1..S4 (+S9 render) on one capture and write a schema-valid plan.json.
 
-    Geometry/stitch/damage stages (S3+) land at M3+; for now ``run`` emits a CIR with
-    session + frames + recon (LiDAR tier only).
+    Damage/concealed/scope stages (S5-S8) land at M5+; ``run`` currently emits a
+    CIR with session + frames + recon + single-room geometry + stitch (LiDAR
+    tier only at S2).
     """
     cfg = load_config(config, output_dir=str(out) if out is not None else None)
     bundle = load_bundle(capture_dir)
-    cir = ingest_capture(capture_dir, cfg)
     out_dir = Path(cfg.output_dir) / bundle.capture_id
     out_dir.mkdir(parents=True, exist_ok=True)
+    cir, geom = _pipeline_s1_s3(
+        Path(capture_dir), cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100.0
+    )
+    assert cir.recon is not None and cir.recon.points_ref is not None
+    points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
+    svg_path = (
+        render_room_svg(geom, out_dir / "plan.svg", title=cir.session.id)
+        if geom is not None
+        else None
+    )
 
-    try:
-        cir.recon = run_recon(
-            Path(capture_dir), cir, cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100.0
-        )
-    except UnsupportedTierError as exc:
-        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
-        raise typer.Exit(code=NOT_IMPLEMENTED_EXIT) from exc
-
-    # S3 geometry (single-room) + S9 render. Degenerate clouds emit a recon-only
-    # plan rather than failing hard (results-out policy, plan 04 section 3).
-    recon = cir.recon
-    points = np.load(out_dir / str(recon.points_ref))["points"].astype(np.float64)
-    try:
-        geom = extract_room(points, tier=cir.session.tier, seed=cfg.seed, room_id="room_0")
-    except ValueError as exc:
-        typer.secho(
-            f"  geometry: {exc}; emitting recon-only plan", fg=typer.colors.YELLOW, err=True
-        )
-        geom = None
-    if geom is not None:
-        cir.rooms = [geom.room]
-        cir.surfaces = geom.surfaces
-        cir.openings = geom.openings
-        cir.measures = geom.measures
-        svg_path: Path | None = render_room_svg(geom, out_dir / "plan.svg", title=cir.session.id)
-    else:
-        svg_path = None
+    # S4 stitch + drift correction (plan 04d); single-room captures stitch trivially.
+    cir.stitch = run_stitch(cir, loop_closure=cfg.loop_closure)
 
     plan_path = out_dir / "plan.json"
     plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
@@ -138,13 +187,13 @@ def run(
             typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
-    quality = recon.quality
+    quality = cir.recon.quality
     typer.echo(f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)}")
     typer.echo(
         f"  recon: points={points.shape[0]} track_len={int(quality.track_len or 0)} "
         f"coverage={quality.coverage} plane_rms={quality.plane_rms}"
     )
-    typer.echo(f"  scale_source={recon.scale_source}")
+    typer.echo(f"  scale_source={cir.recon.scale_source}")
     if geom is not None:
         area = geom.room.floor_area
         ceil = geom.room.ceiling_height
@@ -155,10 +204,15 @@ def run(
             f"  room: area={area_txt} ceiling={ceil_txt} walls={n_walls} "
             f"openings={len(geom.openings)}"
         )
+    st = cir.stitch
+    typer.echo(
+        f"  stitch: rooms={len(st.room_transforms)} edges={len(st.edges)} "
+        f"closures={len(st.closures)} overlap_ok={st.overlap_ok} unstitched={st.unstitched}"
+    )
     typer.echo(f"  wrote {plan_path}")
     if svg_path is not None:
         typer.echo(f"  wrote {svg_path}")
-    typer.echo("  note: stitch/damage/scope stages (S4-S8) are pending (M4+).")
+    typer.echo("  note: damage/scope stages (S5-S8) are pending (M5+).")
 
 
 @app.command()
@@ -186,16 +240,69 @@ def ingest(
 
 @app.command()
 def ablate(
-    capture: Annotated[str, typer.Option("--capture", help="Capture id (cap_<8hex>).")],
+    capture: Annotated[
+        str, typer.Option("--capture", help="Capture id (cap_<8hex>) or bundle path.")
+    ],
     feature: Annotated[
         str, typer.Option("--feature", help="Feature to toggle (04d).")
     ] = "loop_closure",
     config: Annotated[Path | None, _CONFIG_OPTION] = None,
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", "-o", help="Output dir (default: config.output_dir)."),
+    ] = None,
+    stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
+    voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Emit drift on/off footprints from the same code path (G-DRIFT ablation)."""
-    cfg = load_config(config)
+    """Emit drift on/off footprints from the same code path (G-DRIFT ablation).
+
+    Runs S1-S4 twice with loop closure on/off (plan 04d section 4) and stores the
+    two footprints in ``stitch.ablation`` (plan.json) plus a standalone
+    ``ablation.json`` under ``out/<capture_id>/``.
+    """
+    if feature != "loop_closure":
+        typer.secho(
+            f"unknown feature '{feature}' (only 'loop_closure' exists, plan 04d)",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    cfg = load_config(config, output_dir=str(out) if out is not None else None)
+    capture_dir = _resolve_capture_dir(capture)
+    bundle = load_bundle(capture_dir)
     logger.info("ablate capture=%s feature=%s base=%s", capture, feature, cfg.loop_closure)
-    _pending("04d", "ablate (loop-closure ablation)")
+    out_dir = Path(cfg.output_dir) / bundle.capture_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cir, _geom = _pipeline_s1_s3(capture_dir, cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100.0)
+
+    stitch = run_stitch(cir, loop_closure=cfg.loop_closure)
+    stitch.ablation = run_ablation(cir)
+    cir.stitch = stitch
+
+    plan_path = out_dir / "plan.json"
+    plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
+    errors = validate_plan(json.loads(plan_path.read_text()))
+    if errors:
+        for err in errors:
+            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    abl_path = out_dir / "ablation.json"
+    assert stitch.ablation is not None
+    abl_path.write_text(stitch.ablation.model_dump_json(exclude_none=True, indent=2))
+
+    ab = stitch.ablation
+    typer.echo(f"[{cir.session.id}] ablation feature=loop_closure (G-DRIFT):")
+    typer.echo(
+        f"  on : footprint={ab.loop_closure_on.footprint_m2:.3f} m2 "
+        f"closure_gap={ab.loop_closure_on.closure_gap_m}"
+    )
+    typer.echo(f"  off: footprint={ab.off.footprint_m2:.3f} m2 closure_gap={ab.off.closure_gap_m}")
+    if len(cir.rooms) < 2:
+        typer.echo(
+            "  note: fewer than 2 rooms - no inter-room constraints, so on/off "
+            "footprints are identical by construction (multi-room set is BM-1, plan 08)."
+        )
+    typer.echo(f"  wrote {abl_path}")
 
 
 @app.command()

@@ -6,11 +6,14 @@ interval on every measurement.
 
 Applied AI Engineer case study submission (Aug 2026).
 
-> **Status: M1–M2 (ingest+recon + frozen CIR/schema).** Repo scaffold, config (I4),
+> **Status: M3–M4 (single-room geometry + stitch/drift).** Repo scaffold, config (I4),
 > utilities, CLI (I5), frozen CIR (I2), published schema (I3), and the confirmed B-0
-> depth-unit check are in place. `scan2plan validate`, `scan2plan ingest` (S1) and
-> `scan2plan run` (S1+S2, LiDAR tier) are implemented and emit a schema-valid
-> `plan.json`; geometry/stitch/damage stages (S3+) land at M3+. See `docs/plans/`.
+> depth-unit check are in place. `scan2plan run` (LiDAR tier) executes S1–S4 + S9:
+> ingest, LiDAR recon, single-room geometry (walls/openings/area/ceiling), SE(2)
+> pose-graph stitch with loop closure, and an SVG plan — emitting a schema-valid
+> `plan.json`. `scan2plan ablate` emits the G-DRIFT loop-closure on/off footprints
+> from the same code path. Damage/scope/calibration stages (S5–S8) land at M5+.
+> See `docs/plans/`.
 
 ## Interfaces (frozen contracts)
 
