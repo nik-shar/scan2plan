@@ -76,9 +76,29 @@ def test_run_requires_existing_directory(tmp_path: Path) -> None:
     assert result.exit_code != NOT_IMPLEMENTED_EXIT
 
 
-def test_ablate_reports_pending() -> None:
-    result = runner.invoke(app, ["ablate", "--capture", "cap_c00a170fe1"])
-    assert result.exit_code == NOT_IMPLEMENTED_EXIT
+def test_ablate_unknown_capture_errors(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["ablate", "--capture", "cap_doesnotexist"])
+    assert result.exit_code == 2  # resolution failure, not a pending stub
+    assert result.exit_code != NOT_IMPLEMENTED_EXIT
+
+
+def test_ablate_runs_on_synthetic_bundle(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2)
+    out_dir = tmp_path / "out"
+    result = runner.invoke(app, ["ablate", "--capture", str(cap), "--out", str(out_dir)])
+    assert result.exit_code == 0
+    ablation = out_dir / cap.name / "ablation.json"
+    assert ablation.is_file()
+    data = json.loads(ablation.read_text())
+    # G-DRIFT: both footprints emitted from the same code path
+    assert "loop_closure_on" in data and "off" in data
+    assert data["loop_closure_on"]["footprint_m2"] >= 0.0
+
+
+def test_ablate_rejects_unknown_feature(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2)
+    result = runner.invoke(app, ["ablate", "--capture", str(cap), "--feature", "nope"])
+    assert result.exit_code == 2
 
 
 def test_ablate_requires_capture() -> None:
