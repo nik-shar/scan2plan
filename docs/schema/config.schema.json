@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scan2plan.local/schema/config.schema.json",
+  "title": "scan2plan configuration (interface I4)",
+  "description": "Runtime configuration. Mirrors docs/plans/01-shared-conventions-and-interfaces.md §8.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tier": {
+      "description": "Input tier; auto infers from the capture bundle.",
+      "enum": ["auto", "photos", "video", "lidar"],
+      "default": "auto"
+    },
+    "seed": {
+      "description": "Determinism seed for all stochastic steps.",
+      "type": "integer",
+      "default": 1337
+    },
+    "depth_scale_m": {
+      "description": "Metres per depth unit. Seed PNGs are uint16 and hypothesised millimetres (see task B-0).",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 0.001
+    },
+    "units": {
+      "enum": ["m"],
+      "default": "m"
+    },
+    "output_dir": {
+      "type": "string",
+      "minLength": 1,
+      "default": "out"
+    },
+    "cache": {
+      "type": "boolean",
+      "default": true
+    },
+    "loop_closure": {
+      "description": "Enable drift correction (loop closure + pose-graph). Toggled off by `scan2plan ablate`.",
+      "type": "boolean",
+      "default": true
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": { "enum": ["conformal", "analytic"], "default": "conformal" },
+        "nominal": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 0.9 }
+      }
+    }
+  }
+}
