@@ -4,20 +4,23 @@ Command shapes are declared in ``docs/plans/02-foundation-repo-and-infra.md``
 section 4 and owned (filled in) by ``docs/plans/04g-output-render-cli.md``
 section 1.
 
-This module is the **M0 skeleton**: every command of the contract is registered
-so ``scan2plan --help`` lists them, arguments are validated, and the I4 config is
-loaded. Each stage body is a placeholder that points at the plan doc which will
-implement it (stages land at their milestones M1..M9).
+This module is the **M0 skeleton plus the M2 ``validate`` command**: every command
+of the contract is registered so ``scan2plan --help`` lists them, arguments are
+validated, and the I4 config is loaded. Pipeline stages are placeholders that point
+at the owning plan doc (they land at milestones M1..M9); ``validate`` is fully
+implemented against interface I3.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
 
 from scan2plan import __version__
+from scan2plan.cir.validate import validate_plan
 from scan2plan.config import load_config
 from scan2plan.util.logging import get_logger
 
@@ -149,9 +152,15 @@ def validate(
         typer.Option("--schema", help="Override the I3 schema path."),
     ] = None,
 ) -> None:
-    """Validate a plan.json against the published I3 schema."""
-    logger.info("validate plan=%s schema=%s", plan_json, schema)
-    _pending("04a", "validate (I3 plan schema)")
+    """Validate a plan.json against the published I3 schema (plan 04a, task C-4)."""
+    data = json.loads(plan_json.read_text())
+    errors = validate_plan(data, schema_path=schema)
+    if errors:
+        for err in errors:
+            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
+        typer.secho(f"INVALID: {plan_json} ({len(errors)} error(s))", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    typer.secho(f"valid: {plan_json}", fg=typer.colors.GREEN)
 
 
 def main() -> None:
