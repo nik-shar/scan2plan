@@ -8,6 +8,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from scan2plan import __version__
+from scan2plan.cir.validate import validate_plan
 from scan2plan.cli import NOT_IMPLEMENTED_EXIT, app
 
 runner = CliRunner()
@@ -33,15 +34,39 @@ def test_bare_invocation_shows_usage() -> None:
     assert "Usage" in result.output
 
 
-def test_run_reports_pending(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["run", str(tmp_path)])
-    assert result.exit_code == NOT_IMPLEMENTED_EXIT
-    assert "not implemented" in result.output.lower()
+def test_run_writes_valid_plan(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2, shape=(8, 8))
+    out_dir = tmp_path / "out"
+    result = runner.invoke(app, ["run", str(cap), "--out", str(out_dir)])
+    assert result.exit_code == 0
+    plan = out_dir / cap.name / "plan.json"
+    assert plan.is_file()
+    # the written plan is schema-valid (I3) including referential integrity
+    assert validate_plan(json.loads(plan.read_text())) == []
+    # recon artifacts were written and referenced
+    data = json.loads(plan.read_text())
+    recon_ref = data["recon"]["points_ref"]
+    assert (out_dir / cap.name / recon_ref).is_file()
 
 
-def test_run_exercises_config_and_out_options(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["run", str(tmp_path), "--out", "elsewhere"])
-    assert result.exit_code == NOT_IMPLEMENTED_EXIT
+def test_run_exercises_config_and_out_options(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2)
+    out_dir = tmp_path / "custom_out"
+    result = runner.invoke(app, ["run", str(cap), "--out", str(out_dir), "--stride", "1"])
+    assert result.exit_code == 0
+    assert (out_dir / cap.name / "plan.json").is_file()
+
+
+def test_ingest_writes_cir(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2)
+    out_dir = tmp_path / "out"
+    result = runner.invoke(app, ["ingest", str(cap), "--out", str(out_dir)])
+    assert result.exit_code == 0
+    cir_path = out_dir / cap.name / "cir.json"
+    assert cir_path.is_file()
+    data = json.loads(cir_path.read_text())
+    assert data["session"]["tier"] == "lidar"
+    assert len(data["frames"]) == 2
 
 
 def test_run_requires_existing_directory(tmp_path: Path) -> None:
@@ -49,11 +74,6 @@ def test_run_requires_existing_directory(tmp_path: Path) -> None:
     result = runner.invoke(app, ["run", str(missing)])
     assert result.exit_code != 0
     assert result.exit_code != NOT_IMPLEMENTED_EXIT
-
-
-def test_ingest_reports_pending(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["ingest", str(tmp_path)])
-    assert result.exit_code == NOT_IMPLEMENTED_EXIT
 
 
 def test_ablate_reports_pending() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -95,3 +96,43 @@ def valid_plan_dict() -> dict[str, Any]:
         provenance=Provenance(tier="lidar", tool=tool, git_sha="deadbeef", seed=1337),
     )
     return json.loads(cir.model_dump_json(exclude_none=True))
+
+
+@pytest.fixture
+def make_lidar_bundle():
+    """Factory: write a minimal, well-formed synthetic I1 (LiDAR-tier) bundle."""
+
+    def _make(
+        root: Path, name: str = "cafebeef", n_frames: int = 3, shape: tuple[int, int] = (8, 8)
+    ) -> Path:
+        import numpy as np
+        from PIL import Image
+
+        cap = root / name
+        (cap / "depth").mkdir(parents=True, exist_ok=True)
+        (cap / "confidence").mkdir(parents=True, exist_ok=True)
+        h, w = shape
+        np.savetxt(
+            cap / "camera_matrix.csv",
+            np.array([[100.0, 0.0, 50.0], [0.0, 100.0, 40.0], [0.0, 0.0, 1.0]]),
+            delimiter=",",
+        )
+        with open(cap / "odometry.csv", "w") as fh:
+            fh.write(
+                "timestamp, frame, x, y, z, qx, qy, qz, qw, fx, fy, cx, cy, "
+                "distortion_center_x, distortion_center_y\n"
+            )
+            for i in range(n_frames):
+                fh.write(
+                    f"{0.1 * i}, {i:06d}, 0.0, 0.0, {0.5 * i}, 0.0, 0.0, 0.0, 1.0, "
+                    f"100.0, 100.0, 50.0, 40.0, , \n"
+                )
+        depth = np.full((h, w), 2000, dtype=np.uint16)  # 2000 mm = 2 m
+        depth[0, 0] = 0
+        conf = np.full((h, w), 2, dtype=np.uint8)
+        for i in range(n_frames):
+            Image.fromarray(depth).save(cap / "depth" / f"{i:06d}.png")
+            Image.fromarray(conf).save(cap / "confidence" / f"{i:06d}.png")
+        return cap
+
+    return _make
