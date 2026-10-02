@@ -1,0 +1,54 @@
+name: ci
+
+# CI acceptance is defined in docs/plans/02-foundation-repo-and-infra.md section 5.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install (editable) with dev + cli extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,cli]"
+
+      - name: 1. ruff lint
+        run: ruff check .
+
+      - name: 2. ruff format
+        run: ruff format --check .
+
+      - name: 3. mypy --strict (cir/, once plan 04a lands at M2)
+        run: |
+          if [ -d src/scan2plan/cir ]; then
+            python -m mypy --strict src/scan2plan/cir
+          else
+            echo "src/scan2plan/cir not present yet (plan 04a / M2) - skipping"
+          fi
+
+      - name: 4. pytest
+        run: pytest -q
+
+      - name: 5. schema validation (docs/schema/*.json)
+        run: |
+          python - <<'PY'
+          import glob, json, jsonschema
+          files = sorted(glob.glob("docs/schema/*.json"))
+          assert files, "no schemas found"
+          for f in files:
+              jsonschema.Draft202012Validator.check_schema(json.load(open(f)))
+          print("validated:", ", ".join(files))
+          PY
+
+      # Smoke test (plan 02 section 5.5: scan2plan run -> valid plan.json) becomes
+      # active once plan 04g wires the pipeline; until then `run` exits 3 by design.
