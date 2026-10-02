@@ -119,7 +119,9 @@ def _detect_planes(y: np.ndarray, *, bin_w: float = 0.01, min_sep: float = 1.0) 
     centers = (edges[:-1] + edges[1:]) / 2
     smooth = np.convolve(hist, np.ones(5) / 5, mode="same")
     candidates = [
-        i for i in range(1, len(smooth) - 1) if smooth[i] >= smooth[i - 1] and smooth[i] >= smooth[i + 1]
+        i
+        for i in range(1, len(smooth) - 1)
+        if smooth[i] >= smooth[i - 1] and smooth[i] >= smooth[i + 1]
     ]
     candidates.sort(key=lambda i: smooth[i], reverse=True)
 
@@ -160,9 +162,8 @@ def analyse(capture: Path, *, scale: float, stride: int, min_conf: int) -> B0Res
     extent_z = float(np.ptp(slab[:, 2])) if slab.size else 0.0
     travel = float(np.linalg.norm(np.ptp(cams, axis=0)))
 
-    plausible = (
-        CAMERA_HEIGHT_RANGE_M[0] <= camera_height <= CAMERA_HEIGHT_RANGE_M[1]
-        and (room_height is None or ROOM_HEIGHT_RANGE_M[0] <= room_height <= ROOM_HEIGHT_RANGE_M[1])
+    plausible = CAMERA_HEIGHT_RANGE_M[0] <= camera_height <= CAMERA_HEIGHT_RANGE_M[1] and (
+        room_height is None or ROOM_HEIGHT_RANGE_M[0] <= room_height <= ROOM_HEIGHT_RANGE_M[1]
     )
     rel = capture.relative_to(REPO_ROOT) if capture.is_absolute() else capture
     n_rows = len(_load_odometry(capture / "odometry.csv"))
@@ -185,7 +186,9 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("captures", nargs="*", default=DEFAULT_CAPTURES)
-    parser.add_argument("--stride", type=int, default=100, help="sample every Nth frame (default 100)")
+    parser.add_argument(
+        "--stride", type=int, default=100, help="sample every Nth frame (default 100)"
+    )
     parser.add_argument(
         "--min-confidence", type=int, default=1, help="min ARKit confidence to keep (default 1)"
     )
@@ -217,8 +220,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # Scale-discrimination table on the first capture: only mm is plausible.
     first = REPO_ROOT / args.captures[0]
-    labels = {"0.0005": "0.5 mm (2x too small)", "0.001": "1 mm (hypothesis)",
-              "0.002": "2 mm (2x too big)", "0.01": "10 mm (10x too big)"}
+    labels = {
+        "0.0005": "0.5 mm (2x too small)",
+        "0.001": "1 mm (hypothesis)",
+        "0.002": "2 mm (2x too big)",
+        "0.01": "10 mm (10x too big)",
+    }
     print(f"\n-- scale discrimination on {args.captures[0]} (camera height vs assumed scale) --")
     for s in ALT_SCALES:
         res = analyse(first, scale=s, stride=max(args.stride, 200), min_conf=args.min_confidence)
