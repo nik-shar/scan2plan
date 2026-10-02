@@ -1,0 +1,1243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scan2plan.local/schema/plan.schema.json",
+  "title": "scan2plan plan (interface I3)",
+  "description": "Published output schema produced by `scan2plan run` (see docs/plans/04a section 2). Derived from `scan2plan.cir.model.CIR` so it cannot drift from interface I2. Referential integrity (rule 3) is enforced separately by `scan2plan.cir.validate`.",
+  "$defs": {
+    "Ablation": {
+      "additionalProperties": false,
+      "description": "Drift on/off footprints emitted from the same code path (G-DRIFT ablation).",
+      "properties": {
+        "loop_closure_on": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Footprint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "off": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Footprint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Ablation",
+      "type": "object"
+    },
+    "ConcealedFlag": {
+      "additionalProperties": false,
+      "description": "A concealed-damage flag carrying the rule id that fired (OUT-4).",
+      "properties": {
+        "surface_id": {
+          "title": "Surface Id",
+          "type": "string"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Text"
+        },
+        "inputs": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Inputs",
+          "type": "object"
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Ref"
+        }
+      },
+      "required": [
+        "surface_id",
+        "rule_id"
+      ],
+      "title": "ConcealedFlag",
+      "type": "object"
+    },
+    "Damage": {
+      "additionalProperties": false,
+      "description": "A damage region on a surface (plan 04a section 1.6 / 04e).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "surface_id": {
+          "title": "Surface Id",
+          "type": "string"
+        },
+        "cls": {
+          "enum": [
+            "crack",
+            "water_stain",
+            "mold",
+            "spalling",
+            "paint_peel",
+            "rot"
+          ],
+          "title": "Cls",
+          "type": "string"
+        },
+        "polygon": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "title": "Polygon",
+          "type": "array"
+        },
+        "extent": {
+          "$ref": "#/$defs/Extent"
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Ref"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "surface_id",
+        "cls"
+      ],
+      "title": "Damage",
+      "type": "object"
+    },
+    "Extent": {
+      "additionalProperties": false,
+      "description": "Metric extent of a damage region (plan 04e).",
+      "properties": {
+        "area_m2": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area M2"
+        },
+        "bbox_m": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bbox M"
+        }
+      },
+      "title": "Extent",
+      "type": "object"
+    },
+    "Footprint": {
+      "additionalProperties": false,
+      "description": "A stitched footprint measurement for the drift ablation (G-DRIFT).",
+      "properties": {
+        "footprint_m2": {
+          "minimum": 0.0,
+          "title": "Footprint M2",
+          "type": "number"
+        },
+        "closure_gap_m": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Closure Gap M"
+        }
+      },
+      "required": [
+        "footprint_m2"
+      ],
+      "title": "Footprint",
+      "type": "object"
+    },
+    "Frame": {
+      "additionalProperties": false,
+      "description": "One captured frame (plan 04a section 1.2). Pose is camera->world (I7).",
+      "properties": {
+        "idx": {
+          "minimum": 0,
+          "title": "Idx",
+          "type": "integer"
+        },
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "rgb_ref": {
+          "title": "Rgb Ref",
+          "type": "string"
+        },
+        "depth_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Depth Ref"
+        },
+        "conf_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conf Ref"
+        },
+        "pose": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 16,
+              "minItems": 16,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pose"
+        },
+        "K": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 9,
+              "minItems": 9,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "K"
+        }
+      },
+      "required": [
+        "idx",
+        "t",
+        "rgb_ref"
+      ],
+      "title": "Frame",
+      "type": "object"
+    },
+    "LoopClosure": {
+      "additionalProperties": false,
+      "description": "A detected revisit constraint (plan 04d).",
+      "properties": {
+        "rooms": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rooms",
+          "type": "array"
+        },
+        "gap_m": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gap M"
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Ref"
+        }
+      },
+      "title": "LoopClosure",
+      "type": "object"
+    },
+    "Measurement": {
+      "additionalProperties": false,
+      "description": "A scalar quantity with a calibrated confidence interval.\n\nInvariant (enforced): ``ci_low <= value <= ci_high``; nominal coverage is\n90% unless ``nominal`` says otherwise.",
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "ci_low": {
+          "title": "Ci Low",
+          "type": "number"
+        },
+        "ci_high": {
+          "title": "Ci High",
+          "type": "number"
+        },
+        "method": {
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "photos",
+            "video",
+            "lidar"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "nominal": {
+          "default": 0.9,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1.0,
+          "title": "Nominal",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "value",
+        "unit",
+        "ci_low",
+        "ci_high",
+        "method",
+        "tier"
+      ],
+      "title": "Measurement",
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "description": "A disclosed pretrained model/dataset/API (plan 01 section 9).",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "licence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Licence"
+        },
+        "where": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Where"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "Opening": {
+      "additionalProperties": false,
+      "description": "A door/window/passage opening (plan 04a section 1.4 + ADR-0003).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "room_id": {
+          "title": "Room Id",
+          "type": "string"
+        },
+        "surface_id": {
+          "title": "Surface Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "door",
+            "window",
+            "passage"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measurement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "height": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measurement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "detection_confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detection Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "room_id",
+        "surface_id",
+        "kind"
+      ],
+      "title": "Opening",
+      "type": "object"
+    },
+    "Plane": {
+      "additionalProperties": false,
+      "description": "A plane as (unit normal, offset d) with normal . p + d = 0.",
+      "properties": {
+        "normal": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Normal",
+          "type": "array"
+        },
+        "d": {
+          "title": "D",
+          "type": "number"
+        }
+      },
+      "required": [
+        "normal",
+        "d"
+      ],
+      "title": "Plane",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "Provenance block required by I3 (rule 5): tier, tool, models, git sha, seed.",
+      "properties": {
+        "tier": {
+          "enum": [
+            "photos",
+            "video",
+            "lidar"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Tool"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "device": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device"
+        },
+        "git_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Git Sha"
+        },
+        "code_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code Version"
+        },
+        "seed": {
+          "default": 1337,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/ModelRef"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tier"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Recon": {
+      "additionalProperties": false,
+      "description": "Per-tier reconstruction artifact (interface I8, plan 04a section 1.3).",
+      "properties": {
+        "points_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points Ref"
+        },
+        "scale": {
+          "default": 1.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "scale_source": {
+          "default": "lidar",
+          "enum": [
+            "lidar",
+            "mono_depth",
+            "vio",
+            "reference"
+          ],
+          "title": "Scale Source",
+          "type": "string"
+        },
+        "pose_graph_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pose Graph Ref"
+        },
+        "quality": {
+          "$ref": "#/$defs/ReconQuality"
+        }
+      },
+      "title": "Recon",
+      "type": "object"
+    },
+    "ReconQuality": {
+      "additionalProperties": false,
+      "description": "Reconstruction quality metrics; feed measurement CI via 04f (plan 04b \u00a76).",
+      "properties": {
+        "track_len": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track Len"
+        },
+        "mean_reproj": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mean Reproj"
+        },
+        "plane_rms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plane Rms"
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coverage"
+        },
+        "scale_uncertainty": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Uncertainty"
+        }
+      },
+      "title": "ReconQuality",
+      "type": "object"
+    },
+    "Room": {
+      "additionalProperties": false,
+      "description": "A room (plan 04a section 1.4); boundary is the floor polygon (room frame).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "boundary": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "title": "Boundary",
+          "type": "array"
+        },
+        "ceiling_height": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measurement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "floor_area": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measurement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Room",
+      "type": "object"
+    },
+    "SE2": {
+      "additionalProperties": false,
+      "description": "A planar rigid transform (x, y, theta) in the stitched plan frame.",
+      "properties": {
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "theta": {
+          "default": 0.0,
+          "title": "Theta",
+          "type": "number"
+        }
+      },
+      "title": "SE2",
+      "type": "object"
+    },
+    "ScopeItem": {
+      "additionalProperties": false,
+      "description": "A repair line item keyed to a surface (OUT-5).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "surface_id": {
+          "title": "Surface Id",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measurement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "surface_id",
+        "task"
+      ],
+      "title": "ScopeItem",
+      "type": "object"
+    },
+    "Session": {
+      "additionalProperties": false,
+      "description": "Capture session metadata (plan 04a section 1.1).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "photos",
+            "video",
+            "lidar"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "device": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device"
+        },
+        "ios": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ios"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Tool"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "captured_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captured At"
+        },
+        "rooms_expected": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Rooms Expected",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "tier"
+      ],
+      "title": "Session",
+      "type": "object"
+    },
+    "Stitch": {
+      "additionalProperties": false,
+      "description": "Multi-room stitch result (interface produced by 04d).",
+      "properties": {
+        "plan_frame": {
+          "default": "stitched_world_xy",
+          "title": "Plan Frame",
+          "type": "string"
+        },
+        "room_transforms": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SE2"
+          },
+          "title": "Room Transforms",
+          "type": "object"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/StitchEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "closures": {
+          "items": {
+            "$ref": "#/$defs/LoopClosure"
+          },
+          "title": "Closures",
+          "type": "array"
+        },
+        "overlap_ok": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Overlap Ok"
+        },
+        "unstitched": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unstitched"
+        },
+        "ablation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ablation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Stitch",
+      "type": "object"
+    },
+    "StitchEdge": {
+      "additionalProperties": false,
+      "description": "A relative constraint between two rooms (plan 04d).",
+      "properties": {
+        "room_a": {
+          "title": "Room A",
+          "type": "string"
+        },
+        "room_b": {
+          "title": "Room B",
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/$defs/SE2"
+        },
+        "kind": {
+          "default": "connector",
+          "title": "Kind",
+          "type": "string"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weight"
+        }
+      },
+      "required": [
+        "room_a",
+        "room_b"
+      ],
+      "title": "StitchEdge",
+      "type": "object"
+    },
+    "Surface": {
+      "additionalProperties": false,
+      "description": "A wall/ceiling/floor surface (plan 04a section 1.4).",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "room_id": {
+          "title": "Room Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "wall",
+            "ceiling",
+            "floor"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "plane": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Plane"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "polygon": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "title": "Polygon",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "room_id",
+        "type"
+      ],
+      "title": "Surface",
+      "type": "object"
+    },
+    "Tool": {
+      "additionalProperties": false,
+      "description": "A capture or processing tool, pinned by version (disclosure, plan 09).",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "Tool",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "session": {
+      "$ref": "#/$defs/Session"
+    },
+    "frames": {
+      "items": {
+        "$ref": "#/$defs/Frame"
+      },
+      "title": "Frames",
+      "type": "array"
+    },
+    "recon": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Recon"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rooms": {
+      "items": {
+        "$ref": "#/$defs/Room"
+      },
+      "title": "Rooms",
+      "type": "array"
+    },
+    "surfaces": {
+      "items": {
+        "$ref": "#/$defs/Surface"
+      },
+      "title": "Surfaces",
+      "type": "array"
+    },
+    "openings": {
+      "items": {
+        "$ref": "#/$defs/Opening"
+      },
+      "title": "Openings",
+      "type": "array"
+    },
+    "stitch": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Stitch"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "damages": {
+      "items": {
+        "$ref": "#/$defs/Damage"
+      },
+      "title": "Damages",
+      "type": "array"
+    },
+    "concealed": {
+      "items": {
+        "$ref": "#/$defs/ConcealedFlag"
+      },
+      "title": "Concealed",
+      "type": "array"
+    },
+    "scope": {
+      "items": {
+        "$ref": "#/$defs/ScopeItem"
+      },
+      "title": "Scope",
+      "type": "array"
+    },
+    "measures": {
+      "items": {
+        "$ref": "#/$defs/Measurement"
+      },
+      "title": "Measures",
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    }
+  },
+  "required": [
+    "session",
+    "provenance"
+  ],
+  "type": "object"
+}

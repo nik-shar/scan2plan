@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10", "types-PyYAML>=6.0"]
+dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10", "types-PyYAML>=6.0", "types-jsonschema>=4.25"]
 cli = ["typer>=0.12"]
 pipeline = ["scipy>=1.11", "shapely>=2.0", "opencv-python>=4.9", "open3d>=0.18"]
 render = ["svgwrite>=1.4", "matplotlib>=3.8"]
