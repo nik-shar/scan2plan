@@ -1,0 +1,26 @@
+# --- scan2plan ---
+out/
+*.cache
+weights/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# --- large seed captures (kept out of plain git; use LFS or fetch script) ---
+# See docs/plans/02-foundation-repo-and-infra.md §6
+*.mp4
+**/depth/
+**/confidence/
+
+# --- case-study brief: potentially confidential IP, keep out of git history ---
+# (history is permanent; keeping this untracked preserves the option to publish later)
+Applied_AI_Case_Study.pdf
+
+# --- keep small ground-truth / docs ---
+!bench/ground_truth/**
