@@ -199,6 +199,13 @@ def _report_stage2(stage2: dict[str, object] | None, out_dir: Path) -> None:
         f"(kept {ev.get('evidence_explained_kept')}, "  # type: ignore[union-attr]
         f"cells kept {cells.get('kept')}/{cells.get('input')})"  # type: ignore[union-attr]
     )
+    graph = stage2.get("graph", {})
+    counts = graph.get("counts", {}) if isinstance(graph, dict) else {}
+    typer.echo(
+        f"  stage 2 graph: {graph.get('node_count')} nodes / "  # type: ignore[union-attr]
+        f"{graph.get('edge_count')} edges (L {counts.get('L')}, T {counts.get('T')}, "  # type: ignore[union-attr]
+        f"cross {counts.get('cross')}, dangling {counts.get('dangling_end')})"  # type: ignore[union-attr]
+    )
     for w in stage2.get("warnings", []):  # type: ignore[union-attr]
         typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
     typer.echo(f"  wrote {out_dir / 'stage2_walls.json'}")

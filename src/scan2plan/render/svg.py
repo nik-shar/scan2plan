@@ -252,6 +252,24 @@ def render_walls_svg(
                 fill=(150, 60, 200),  # unresolved evidence-free gaps (flagged)
                 width=3,
             )
+    g = stage2.get("graph", {})
+    for node in g.get("nodes", []) or []:
+        w = node.get("world")
+        if not w:
+            continue
+        cx, cy = pix(float(w[0]), float(w[1]))
+        ntype = node.get("type")
+        if ntype == "L":  # circle
+            draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], outline=(20, 20, 20), width=2)
+        elif ntype == "T":  # square
+            draw.rectangle([cx - 4, cy - 4, cx + 4, cy + 4], outline=(20, 20, 20), width=2)
+        elif ntype == "cross":  # diamond
+            draw.polygon(
+                [(cx, cy - 5), (cx + 5, cy), (cx, cy + 5), (cx - 5, cy)],
+                outline=(20, 20, 20),
+            )
+        else:  # dangling end -> red ring
+            draw.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], outline=(217, 48, 37), width=2)
     if isinstance(stage1, dict):
         path = stage1.get("camera_xz", []) or []
         path_px = [pix(float(p[0]), float(p[1])) for p in path]
@@ -277,6 +295,9 @@ def render_walls_svg(
         f"unknown gaps: {len(stage2.get('unknown_gaps') or [])} (purple)",
         f"completion: occluded {comp.get('bridged_occluded')}, "
         f"dropout {comp.get('bridged_dropout')}, extended {comp.get('extended')}",
+        f"nodes: L {g.get('counts', {}).get('L')} o, T {g.get('counts', {}).get('T')} [] , "
+        f"cross {g.get('counts', {}).get('cross')} <> , "
+        f"dangling {len(g.get('dangling_ends') or [])} red ring",
         f"angle {stage2.get('manhattan_angle_deg')} deg | min run {params.get('min_run_m')} m "
         f"| tol {tol} m",
         "camera start (green) / end (red)",

@@ -46,6 +46,11 @@ from scan2plan.geometry.wall_complete import (
     complete_walls,
     completion_params_from_config,
 )
+from scan2plan.geometry.wall_graph import (
+    WallGraph,
+    build_wall_graph,
+    graph_params_from_config,
+)
 
 #: Structural constants (not decision thresholds - those live in I4 ``outline``).
 RUN_STEP_M = 0.05  # along-wall run-histogram bin (m)
@@ -518,6 +523,48 @@ def _unknown_out(idx: int, pc: WallPiece, theta: float) -> dict:
     }
 
 
+def _graph_out(graph: WallGraph, theta: float) -> dict[str, object]:
+    """Serialise the wall graph (nodes in uv + world, edges, dangling, counts)."""
+
+    def _world(u: float, v: float) -> list[float]:
+        x, z = _uv_to_world(u, v, theta)
+        return [round(x, 4), round(z, 4)]
+
+    nodes = [
+        {
+            "id": n.id,
+            "uv": [n.u, n.v],
+            "world": _world(n.u, n.v),
+            "type": n.type,
+            "inferred": n.inferred,
+        }
+        for n in graph.nodes
+    ]
+    edges = [
+        {
+            "id": e.id,
+            "node_a": e.node_a,
+            "node_b": e.node_b,
+            "length_m": e.length,
+            "ci_m": e.ci_m,
+            "provenance": e.provenance,
+        }
+        for e in graph.edges
+    ]
+    dangling = [
+        {"node_id": d.node_id, "uv": [d.u, d.v], "world": _world(d.u, d.v), "reason": d.reason}
+        for d in graph.dangling
+    ]
+    return {
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "counts": graph.counts,
+        "nodes": nodes,
+        "edges": edges,
+        "dangling_ends": dangling,
+    }
+
+
 def _segment_out(idx: int, s: Segment, theta: float, cfg: Config, tier: Tier) -> dict[str, object]:
     """Serialise one segment in world coordinates, with a length Measurement."""
     a_uv = (s.offset, s.start) if s.axis == 0 else (s.start, s.offset)
@@ -606,6 +653,7 @@ def reconstruct_walls(
     junctions: list[dict[str, object]] = []
     openings_out: list[dict[str, object]] = []
     unknown_out: list[dict[str, object]] = []
+    graph_out: dict[str, object] = {}
     completion_counts: dict[str, int] = {
         "bridged_occluded": 0,
         "bridged_dropout": 0,
@@ -668,6 +716,8 @@ def reconstruct_walls(
             "openings": len(comp.openings),
             "unknown_gaps": len(comp.unknown_gaps),
         }
+        wall_graph = build_wall_graph(comp.walls, cam_uv, graph_params_from_config(cfg))
+        graph_out = _graph_out(wall_graph, theta)
         if not segs:
             warnings.append("no wall segments found")
         elif n_kept and float(evidence["evidence_explained_kept"]) < LOW_EXPLAINED_FRAC:
@@ -708,6 +758,7 @@ def reconstruct_walls(
         "completion": completion_counts,
         "openings": openings_out,
         "unknown_gaps": unknown_out,
+        "graph": graph_out,
         "evidence": evidence,
         "extent_world": _extent_world(kept),
         "camera_start": stage1.get("camera_start"),
