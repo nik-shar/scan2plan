@@ -14,12 +14,19 @@ from scan2plan.geometry.evidence import (
     wall_cells_with_support,
 )
 from scan2plan.geometry.planes import HorizontalPlane, horizontal_planes
+from scan2plan.geometry.rooms import (
+    RoomParams,
+    build_stage3,
+    room_params_from_config,
+)
 from scan2plan.geometry.wall_complete import (
+    KIND_OPEN_SPACE,
     CompletionParams,
     CompletionResult,
     WallPiece,
     complete_walls,
     completion_params_from_config,
+    merge_wall_pieces,
 )
 from scan2plan.geometry.wall_graph import (
     GraphEdge,
@@ -33,6 +40,7 @@ from scan2plan.geometry.walls import (
     AXES,
     Segment,
     WallParams,
+    dense_blob_mask,
     explained_mask,
     reconstruct_walls,
     wall_params_from_config,
@@ -41,6 +49,7 @@ from scan2plan.geometry.walls import (
 __all__ = [
     "AXES",
     "EVIDENCE_LAYER_CAP",
+    "KIND_OPEN_SPACE",
     "HorizontalPlane",
     "Segment",
     "WallParams",
@@ -49,17 +58,22 @@ __all__ = [
     "GraphEdge",
     "GraphNode",
     "GraphParams",
+    "RoomParams",
     "WallGraph",
     "WallPiece",
+    "build_stage3",
     "build_wall_graph",
     "camera_travel_m",
     "complete_walls",
     "completion_params_from_config",
+    "dense_blob_mask",
     "explained_mask",
     "graph_params_from_config",
     "horizontal_planes",
+    "merge_wall_pieces",
     "observed_evidence",
     "reconstruct_walls",
+    "room_params_from_config",
     "wall_cells_with_support",
     "wall_params_from_config",
 ]
