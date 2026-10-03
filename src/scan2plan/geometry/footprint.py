@@ -36,6 +36,10 @@ COLLINEAR_TOL_DEG = 8.0
 #: MIN_EDGE_M so genuine wall features are never removed.
 CHORD_TOL_M = 0.20
 CLOSE_ITERATIONS = 2
+#: Complexity cap: ragged real-floor boundaries are simplified further (tolerance
+#: grown until the ring fits) so the plan does not emit dozens of micro-walls.
+MAX_RING_POINTS = 16
+MAX_SIMPLIFY_M = 1.0
 TRIM_PCT_LO = 0.5
 TRIM_PCT_HI = 99.5
 
@@ -181,6 +185,32 @@ def merge_collinear(
     return np.asarray(pts, dtype=np.float64)
 
 
+def cap_complexity(
+    ring: NDArray[np.float64],
+    *,
+    max_points: int = MAX_RING_POINTS,
+    max_tol_m: float = MAX_SIMPLIFY_M,
+) -> NDArray[np.float64]:
+    """Grow the simplification tolerance until the ring has <= ``max_points``.
+
+    A clean synthetic room is already below the cap, so this only affects ragged
+    real-floor boundaries (which would otherwise emit dozens of micro-walls). The
+    tolerance is grown geometrically from ``SIMPLIFY_M`` up to ``max_tol_m``.
+    """
+    if ring.shape[0] <= max_points:
+        return ring
+    poly = Polygon(ring)
+    tol = SIMPLIFY_M
+    out = ring
+    while out.shape[0] > max_points and tol <= max_tol_m:
+        tol *= 1.5
+        simplified = poly.simplify(tol, preserve_topology=True)
+        if simplified.geom_type != "Polygon" or simplified.is_empty:
+            break
+        out = merge_collinear(np.asarray(simplified.exterior.coords[:-1]))
+    return out
+
+
 def extract_footprint(xz: NDArray[np.float64], theta: float) -> Footprint2D | None:
     """Full footprint pipeline (plan 04h section 4.2 steps 3-7); None => OBB fallback."""
     if xz.shape[0] < 4:
@@ -189,7 +219,7 @@ def extract_footprint(xz: NDArray[np.float64], theta: float) -> Footprint2D | No
     raw = grid_to_polygon(grid, x0, z0, GRID_BIN_M)
     if raw is None:
         return None
-    ring = merge_collinear(raw)
+    ring = cap_complexity(merge_collinear(raw))
     if ring.shape[0] < MIN_RING_POINTS:
         return None
     area = float(Polygon(ring).area)
