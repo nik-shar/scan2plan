@@ -1,14 +1,13 @@
 """CLI contract (interface I5).
 
 Command shapes are declared in ``docs/plans/02-foundation-repo-and-infra.md``
-section 4 and owned (filled in) by ``docs/plans/04g-output-render-cli.md``
-section 1.
+section 4 and owned by ``docs/plans/04g-output-render-cli.md`` section 1.
 
-This module is the **M0 skeleton plus the M2 ``validate`` command**: every command
-of the contract is registered so ``scan2plan --help`` lists them, arguments are
-validated, and the I4 config is loaded. Pipeline stages are placeholders that point
-at the owning plan doc (they land at milestones M1..M9); ``validate`` is fully
-implemented against interface I3.
+Current state (plan 04i cleanup): stages beyond stage 1 are **being redesigned**
+(stage 2/3 moved to ``archive/old_stage23/``). ``scan2plan run`` therefore writes
+the stage-1 observed-evidence artifacts and a **stub** ``plan.json`` with
+``status="not_computed"`` that still validates against the I3 schema, so the
+pipeline completes end-to-end. ``validate`` is fully implemented against I3.
 """
 
 from __future__ import annotations
@@ -24,12 +23,11 @@ from scan2plan import __version__
 from scan2plan.cir import CIR
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import Config, load_config
-from scan2plan.geometry import OutlineResult, RoomGeometry, build_outline
+from scan2plan.geometry import observed_evidence
 from scan2plan.geometry.planes import horizontal_planes
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
-from scan2plan.render import render_evidence_svg, render_room_svg, render_stage_svg
-from scan2plan.stitch import run_ablation, run_stitch
+from scan2plan.render import render_evidence_svg
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -90,81 +88,8 @@ def _camera_path(cir: CIR) -> np.ndarray:
     return np.array(centres, dtype=np.float64) if centres else np.empty((0, 3))
 
 
-def _pipeline_s1_s3(
-    capture_dir: Path,
-    cfg: Config,
-    out_dir: Path,
-    *,
-    stride: int,
-    voxel_m: float,
-) -> tuple[CIR, OutlineResult | None]:
-    """S1 ingest -> S2 recon -> S3 three-stage outline (shared by run/ablate).
-
-    Degenerate clouds produce a recon-only CIR (outline=None) rather than failing
-    hard (results-out policy, plan 04 section 3).
-    """
-    cir = ingest_capture(capture_dir, cfg)
-    try:
-        cir.recon = run_recon(capture_dir, cir, cfg, out_dir, stride=stride, voxel_m=voxel_m)
-    except UnsupportedTierError as exc:
-        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
-        raise typer.Exit(code=NOT_IMPLEMENTED_EXIT) from exc
-
-    assert cir.recon.points_ref is not None
-    points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
-    unfiltered_path = out_dir / "recon" / "points_unfiltered.npz"
-    points_unfiltered = (
-        np.load(unfiltered_path)["points"].astype(np.float64) if unfiltered_path.is_file() else None
-    )
-    cam = _camera_path(cir)
-    try:
-        planes = horizontal_planes(points[:, 1])
-        if not planes:
-            raise ValueError("no floor plane detected")
-        floor_y = planes[0].height_m
-        ceil_y = planes[1].height_m if len(planes) > 1 else None
-        outline = build_outline(
-            points,
-            cam,
-            tier=cir.session.tier,
-            floor_y=floor_y,
-            ceil_y=ceil_y,
-            cfg=cfg,
-            room_id="room_0",
-            points_unfiltered=points_unfiltered,
-        )
-    except ValueError as exc:
-        typer.secho(
-            f"  geometry: {exc}; emitting recon-only plan", fg=typer.colors.YELLOW, err=True
-        )
-        return cir, None
-    cir.rooms = [outline.room]
-    cir.surfaces = outline.surfaces
-    cir.openings = outline.openings
-    cir.measures = outline.measures
-    return cir, outline
-
-
-def _write_stage_json(outline: OutlineResult, out_dir: Path) -> list[Path]:
-    """Write the three stage payloads (plan 04i) next to plan.json."""
-    written: list[Path] = []
-    for name, payload in (
-        ("stage1_observed.json", outline.stage1),
-        ("stage2_classified.json", outline.stage2),
-        ("stage3_final.json", outline.stage3),
-    ):
-        path = out_dir / name
-        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        written.append(path)
-    return written
-
-
 def _resolve_capture_dir(capture: str) -> Path:
-    """Resolve ``--capture``: an existing directory, or a capture id (cap_<8hex>).
-
-    Ids are looked up one level deep (``<group>/<capture_id>``, interface I1) in
-    the working directory and in ``bench/data``.
-    """
+    """Resolve ``--capture``: an existing directory, or a capture id (cap_<8hex>)."""
     p = Path(capture)
     if p.is_dir():
         return p
@@ -185,6 +110,80 @@ def _resolve_capture_dir(capture: str) -> Path:
     raise typer.Exit(code=2)
 
 
+def _pipeline_s1_s2(
+    capture_dir: Path,
+    cfg: Config,
+    out_dir: Path,
+    *,
+    stride: int,
+    voxel_m: float,
+) -> CIR:
+    """S1 ingest -> S2 recon (LiDAR tier). Stages 3+ are being redesigned."""
+    cir = ingest_capture(capture_dir, cfg)
+    try:
+        cir.recon = run_recon(capture_dir, cir, cfg, out_dir, stride=stride, voxel_m=voxel_m)
+    except UnsupportedTierError as exc:
+        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=NOT_IMPLEMENTED_EXIT) from exc
+    return cir
+
+
+def _stage1_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]:
+    """Compute stage-1 observed evidence and write its JSON + SVG."""
+    assert cir.recon is not None and cir.recon.points_ref is not None
+    points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
+    planes = horizontal_planes(points[:, 1])
+    if planes:
+        floor_y = planes[0].height_m
+        ceil_y = planes[1].height_m if len(planes) > 1 else None
+    else:
+        # Degenerate cloud: still emit stage-1 artifacts (results-out policy).
+        floor_y = float(np.percentile(points[:, 1], 2)) if points.size else 0.0
+        ceil_y = None
+    unfiltered_path = out_dir / "recon" / "points_unfiltered.npz"
+    points_unfiltered = (
+        np.load(unfiltered_path)["points"].astype(np.float64) if unfiltered_path.is_file() else None
+    )
+    stage1 = observed_evidence(
+        points, _camera_path(cir), floor_y, ceil_y, cfg, points_unfiltered=points_unfiltered
+    )
+    if not planes:
+        warnings = stage1.setdefault("warnings", [])
+        if isinstance(warnings, list):
+            warnings.append("no floor plane detected - evidence uses a 2% Y fallback")
+    (out_dir / "stage1_observed.json").write_text(
+        json.dumps(stage1, indent=2, sort_keys=True) + "\n"
+    )
+    render_evidence_svg(
+        stage1,
+        out_dir / "stage1_observed.svg",
+        title=f"{cir.session.id} - stage 1: observed evidence",
+    )
+    return stage1
+
+
+def _write_stub_plan(cir: CIR, out_dir: Path) -> Path:
+    """Write a schema-valid stub plan.json (``status="not_computed"``).
+
+    Stages beyond stage 1 are being redesigned, so the plan carries the stage-1
+    sensory ingest + recon only and is explicitly marked not computed.
+    """
+    cir.status = "not_computed"
+    cir.rooms = []
+    cir.surfaces = []
+    cir.openings = []
+    cir.measures = []
+    cir.stitch = None
+    plan_path = out_dir / "plan.json"
+    plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
+    errors = validate_plan(json.loads(plan_path.read_text()))
+    if errors:
+        for err in errors:
+            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    return plan_path
+
+
 @app.command()
 def run(
     capture_dir: Annotated[
@@ -199,108 +198,44 @@ def run(
     stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
     voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Run S1..S4 (+S9 render) on one capture and write a schema-valid plan.json.
+    """Run S1+S2, write the stage-1 observed-evidence artifacts and a stub plan.
 
-    Damage/concealed/scope stages (S5-S8) land at M5+; ``run`` currently emits a
-    CIR with session + frames + recon + single-room geometry + stitch (LiDAR
-    tier only at S2).
+    Stages beyond stage 1 are being redesigned (plan 04i): the emitted ``plan.json``
+    is schema-valid with ``status="not_computed"`` and carries the sensory ingest +
+    recon only. Stage-1 evidence is written to ``stage1_observed.{json,svg}``.
     """
     cfg = load_config(config, output_dir=str(out) if out is not None else None)
     bundle = load_bundle(capture_dir)
     out_dir = Path(cfg.output_dir) / bundle.capture_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    cir, outline = _pipeline_s1_s3(
-        Path(capture_dir), cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100.0
-    )
-    assert cir.recon is not None and cir.recon.points_ref is not None
-    points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
-    stage_paths: list[Path] = []
-    svg_paths: list[Path] = []
-    svg_path: Path | None = None
-    if outline is not None:
-        geom = RoomGeometry(
-            room=outline.room,
-            surfaces=outline.surfaces,
-            openings=outline.openings,
-            measures=outline.measures,
-        )
-        svg_path = render_room_svg(geom, out_dir / "plan.svg", title=cir.session.id)
-        stage_paths = _write_stage_json(outline, out_dir)
-        # One SVG per stage (plan 04i), plus the canonical plan.svg. All inspectable.
-        svg_paths = [
-            render_evidence_svg(
-                outline.stage1,
-                out_dir / "stage1_observed.svg",
-                title=f"{cir.session.id} - stage 1: observed evidence",
-            ),
-            render_stage_svg(
-                geom,
-                outline.stage2.get("regions", []),  # type: ignore[arg-type]
-                out_dir / "stage2_classified.svg",
-                title=f"{cir.session.id} - stage 2: classified (walls vs removed)",
-            ),
-            render_room_svg(
-                geom,
-                out_dir / "stage3_final.svg",
-                title=f"{cir.session.id} - stage 3: final wall plan",
-            ),
-        ]
-
-    # S4 stitch + drift correction (plan 04d); single-room captures stitch trivially.
-    cir.stitch = run_stitch(cir, loop_closure=cfg.loop_closure)
-
-    plan_path = out_dir / "plan.json"
-    plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
-    errors = validate_plan(json.loads(plan_path.read_text()))
-    if errors:
-        for err in errors:
-            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+    cir = _pipeline_s1_s2(Path(capture_dir), cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100)
+    assert cir.recon is not None
+    try:
+        stage1 = _stage1_artifacts(cir, out_dir, cfg)
+    except ValueError as exc:
+        typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
+        stage1 = {"layer_counts": {}, "warnings": [str(exc)]}
+    plan_path = _write_stub_plan(cir, out_dir)
 
     quality = cir.recon.quality
-    typer.echo(f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)}")
     typer.echo(
-        f"  recon: points={points.shape[0]} track_len={int(quality.track_len or 0)} "
-        f"coverage={quality.coverage} plane_rms={quality.plane_rms}"
+        f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)} status=not_computed"
     )
-    typer.echo(f"  scale_source={cir.recon.scale_source}")
-    if outline is not None:
-        area = outline.room.floor_area
-        ceil = outline.room.ceiling_height
-        area_txt = "n/a" if area is None else f"{area.value:.2f} +/- {area.half_width:.2f} m2"
-        ceil_txt = "n/a" if ceil is None else f"{ceil.value:.2f} m"
-        n_walls = sum(1 for s in outline.surfaces if s.type == "wall")
-        typer.echo(
-            f"  room: area={area_txt} ceiling={ceil_txt} walls={n_walls} "
-            f"openings={len(outline.openings)}"
-        )
-        counts = outline.stage2.get("counts", {})
-        removed = {k: v for k, v in counts.items() if k != "wall" and v}  # type: ignore[union-attr]
-        lc = outline.stage1.get("layer_counts", {})
-        typer.echo(
-            f"  stages: evidence walls={lc.get('wall_cells')} "  # type: ignore[union-attr]
-            f"floor={lc.get('floor_cells')} free={lc.get('camera_free_space')} -> "  # type: ignore[union-attr]
-            f"final={outline.stage3.get('area_m2')} m2 "
-            f"edges={outline.stage3.get('n_edges')} method={outline.stage3.get('method')} "
-            f"inferred_walls={outline.stage3.get('inferred_walls')}"
-        )
-        typer.echo(f"  removed: {removed or 'none'}")
-        if outline.warnings:
-            for w in outline.warnings:
-                typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
-    st = cir.stitch
     typer.echo(
-        f"  stitch: rooms={len(st.room_transforms)} edges={len(st.edges)} "
-        f"closures={len(st.closures)} overlap_ok={st.overlap_ok} unstitched={st.unstitched}"
+        f"  recon: track_len={int(quality.track_len or 0)} coverage={quality.coverage} "
+        f"plane_rms={quality.plane_rms}"
     )
+    lc = stage1.get("layer_counts", {})
+    typer.echo(
+        f"  stage 1 evidence: walls={lc.get('wall_cells')} "  # type: ignore[union-attr]
+        f"floor={lc.get('floor_cells')} free={lc.get('camera_free_space')}"
+    )
+    for w in stage1.get("warnings", []):  # type: ignore[union-attr]
+        typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
+    typer.echo(f"  wrote {out_dir / 'stage1_observed.json'}")
+    typer.echo(f"  wrote {out_dir / 'stage1_observed.svg'}")
     typer.echo(f"  wrote {plan_path}")
-    if svg_path is not None:
-        typer.echo(f"  wrote {svg_path}")
-    for p in stage_paths:
-        typer.echo(f"  wrote {p}")
-    for p in svg_paths:
-        typer.echo(f"  wrote {p}")
-    typer.echo("  note: damage/scope stages (S5-S8) are pending (M5+).")
+    typer.echo("  note: stages beyond 1 (outline/geometry/stitch/damage) are being redesigned.")
 
 
 @app.command()
@@ -342,11 +277,11 @@ def ablate(
     stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
     voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Emit drift on/off footprints from the same code path (G-DRIFT ablation).
+    """Drift ablation (G-DRIFT) - pending the stage 2/3 redesign.
 
-    Runs S1-S4 twice with loop closure on/off (plan 04d section 4) and stores the
-    two footprints in ``stitch.ablation`` (plan.json) plus a standalone
-    ``ablation.json`` under ``out/<capture_id>/``.
+    The ablation needs room geometry to stitch, which is being redesigned (plan
+    04i). ``ablate`` now emits the stage-1 evidence + a stub plan so the capture is
+    still inspectable, and reports honestly that the ablation is not computed.
     """
     if feature != "loop_closure":
         typer.secho(
@@ -358,41 +293,20 @@ def ablate(
     cfg = load_config(config, output_dir=str(out) if out is not None else None)
     capture_dir = _resolve_capture_dir(capture)
     bundle = load_bundle(capture_dir)
-    logger.info("ablate capture=%s feature=%s base=%s", capture, feature, cfg.loop_closure)
     out_dir = Path(cfg.output_dir) / bundle.capture_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    cir, _outline = _pipeline_s1_s3(
-        capture_dir, cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100.0
+    cir = _pipeline_s1_s2(capture_dir, cfg, out_dir, stride=stride, voxel_m=voxel_cm / 100)
+    try:
+        _stage1_artifacts(cir, out_dir, cfg)
+    except ValueError as exc:
+        typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
+    _write_stub_plan(cir, out_dir)
+    typer.secho(
+        "  ablation not computed: drift ablation depends on the stage 2/3 rebuild "
+        "(plan 04i). Wrote stage-1 evidence + stub plan instead.",
+        fg=typer.colors.YELLOW,
+        err=True,
     )
-
-    stitch = run_stitch(cir, loop_closure=cfg.loop_closure)
-    stitch.ablation = run_ablation(cir)
-    cir.stitch = stitch
-
-    plan_path = out_dir / "plan.json"
-    plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
-    errors = validate_plan(json.loads(plan_path.read_text()))
-    if errors:
-        for err in errors:
-            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
-    abl_path = out_dir / "ablation.json"
-    assert stitch.ablation is not None
-    abl_path.write_text(stitch.ablation.model_dump_json(exclude_none=True, indent=2))
-
-    ab = stitch.ablation
-    typer.echo(f"[{cir.session.id}] ablation feature=loop_closure (G-DRIFT):")
-    typer.echo(
-        f"  on : footprint={ab.loop_closure_on.footprint_m2:.3f} m2 "
-        f"closure_gap={ab.loop_closure_on.closure_gap_m}"
-    )
-    typer.echo(f"  off: footprint={ab.off.footprint_m2:.3f} m2 closure_gap={ab.off.closure_gap_m}")
-    if len(cir.rooms) < 2:
-        typer.echo(
-            "  note: fewer than 2 rooms - no inter-room constraints, so on/off "
-            "footprints are identical by construction (multi-room set is BM-1, plan 08)."
-        )
-    typer.echo(f"  wrote {abl_path}")
 
 
 @app.command()
