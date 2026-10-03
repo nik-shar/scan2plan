@@ -12,7 +12,8 @@ Applied AI Engineer case study submission (Aug 2026).
 > **observed-evidence** layer and stage 2 is **multi-segment wall extraction**
 > (it replaces the earlier min-bounding-rectangle stage 2): `scan2plan run` (LiDAR
 > tier) runs S1 ingest + S2 recon, writes `stage1_observed.{json,svg}`, then extracts
-> wall segments into `stage2_walls.{json,svg}` **from the stage-1 artifact only**
+> wall segments and **completes** them (bridging broken lines, preserving openings the
+> camera walked through) into `stage2_walls.{json,svg}` **from the stage-1 artifact only**
 > (never the raw cloud), and emits a schema-valid **stub** `plan.json` with
 > `status = "not_computed"`. Outline closing, classification and snapping were moved
 > to `archive/old_stage23/` for redesign (see `docs/stage1_contract.md` and

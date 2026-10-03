@@ -15,6 +15,13 @@
     "input": 76487,
     "kept": 9219
   },
+  "completion": {
+    "bridged_dropout": 0,
+    "bridged_occluded": 4,
+    "extended": 12,
+    "openings": 1,
+    "unknown_gaps": 0
+  },
   "evidence": {
     "cells_explained": 5693,
     "cells_kept": 9219,
@@ -34,7 +41,7 @@
       10.23
     ]
   },
-  "inferred_count": 7,
+  "inferred_count": 16,
   "junctions": [
     {
       "axis": "u",
@@ -247,10 +254,49 @@
   ],
   "manhattan_angle_deg": 87.0,
   "name": "wall segments",
+  "observed_count": 21,
+  "openings": [
+    {
+      "axis": "u",
+      "end_m": 5.0372,
+      "endpoints_world": {
+        "a": [
+          0.3346,
+          2.6702
+        ],
+        "b": [
+          -4.8898,
+          2.944
+        ]
+      },
+      "id": "open_1",
+      "kind": "door",
+      "offset_m": 2.684,
+      "rule": "camera_path_crosses_gap",
+      "start_m": -0.1944,
+      "width": {
+        "ci_high": 5.284,
+        "ci_low": 5.1793,
+        "id": "open_1.width",
+        "kind": "opening_width",
+        "method": "camera_path_cross",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 5.2316
+      }
+    }
+  ],
   "params": {
     "cell_m": 0.02,
+    "ci_base_m": 0.03,
+    "ci_per_m": 0.15,
+    "collinear_tol_m": 0.15,
+    "dropout_max_m": 0.3,
     "evidence_tol_m": 0.05,
     "join_tol_m": 0.3,
+    "max_extend_m": 1.0,
     "merge_tol_m": 0.25,
     "min_height_bins": 4,
     "min_peak_frac": 0.15,
@@ -261,6 +307,7 @@
   "segments": [
     {
       "axis": "u",
+      "ci_m": 0.0326,
       "coverage": 1.0,
       "end_m": 5.0854,
       "endpoints_world": {
@@ -275,9 +322,10 @@
       },
       "extension_m": 0.0174,
       "id": "wall_1",
+      "inferred": true,
       "length": {
-        "ci_high": 1.3985,
-        "ci_low": 1.3363,
+        "ci_high": 1.4,
+        "ci_low": 1.3348,
         "id": "wall_1.length",
         "kind": "wall_length",
         "method": "wall_segment",
@@ -290,13 +338,54 @@
       "merged_from": 1,
       "offset_m": -1.1711,
       "peak_strength": 0.3631,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": 3.7179,
       "support": 89,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.1579,
+      "coverage": 0.0,
+      "end_m": -1.5241,
+      "endpoints_world": {
+        "a": [
+          2.361,
+          -0.3595
+        ],
+        "b": [
+          1.5097,
+          -0.3148
+        ]
+      },
+      "extension_m": 0.8525,
+      "id": "wall_2",
+      "inferred": true,
+      "length": {
+        "ci_high": 1.0103,
+        "ci_low": 0.6946,
+        "id": "wall_2.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.8525
+      },
+      "merged_from": 1,
+      "offset_m": -0.2354,
+      "peak_strength": 0.0,
+      "provenance": "inferred_extension",
+      "rule": "dangling_end_meets_wall",
+      "start_m": -2.3766,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.8889,
       "end_m": -0.1741,
       "endpoints_world": {
@@ -310,11 +399,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_2",
+      "id": "wall_3",
+      "inferred": false,
       "length": {
         "ci_high": 1.3635,
         "ci_low": 1.3365,
-        "id": "wall_2.length",
+        "id": "wall_3.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -327,12 +417,14 @@
       "offset_m": -0.2354,
       "peak_strength": 0.6145,
       "provenance": "observed",
+      "rule": "",
       "start_m": -1.5241,
       "support": 75,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0411,
       "coverage": 0.9833,
       "end_m": 0.6973,
       "endpoints_world": {
@@ -346,11 +438,12 @@
         ]
       },
       "extension_m": 0.0739,
-      "id": "wall_3",
+      "id": "wall_4",
+      "inferred": true,
       "length": {
-        "ci_high": 3.1785,
-        "ci_low": 2.9692,
-        "id": "wall_3.length",
+        "ci_high": 3.1149,
+        "ci_low": 3.0328,
+        "id": "wall_4.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -362,13 +455,54 @@
       "merged_from": 1,
       "offset_m": 0.0666,
       "peak_strength": 0.7654,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": -2.3766,
       "support": 252,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.2212,
+      "coverage": 0.0,
+      "end_m": 1.9716,
+      "endpoints_world": {
+        "a": [
+          -0.6901,
+          0.1556
+        ],
+        "b": [
+          -1.9627,
+          0.2223
+        ]
+      },
+      "extension_m": 0.0,
+      "id": "wall_5",
+      "inferred": true,
+      "length": {
+        "ci_high": 1.4955,
+        "ci_low": 1.0532,
+        "id": "wall_5.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 1.2744
+      },
+      "merged_from": 1,
+      "offset_m": 0.1192,
+      "peak_strength": 0.0,
+      "provenance": "inferred_occluded",
+      "rule": "furniture_in_front_of_gap",
+      "start_m": 0.6973,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.9649,
       "end_m": 3.7179,
       "endpoints_world": {
@@ -382,11 +516,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_4",
+      "id": "wall_6",
+      "inferred": false,
       "length": {
         "ci_high": 1.7638,
         "ci_low": 1.7289,
-        "id": "wall_4.length",
+        "id": "wall_6.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -399,12 +534,14 @@
       "offset_m": 0.1719,
       "peak_strength": 0.7235,
       "provenance": "observed",
+      "rule": "",
       "start_m": 1.9716,
       "support": 303,
       "thickness_m": 0.0365
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 2.1879,
       "endpoints_world": {
@@ -418,11 +555,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_5",
+      "id": "wall_7",
+      "inferred": false,
       "length": {
         "ci_high": 1.5055,
         "ci_low": 1.4757,
-        "id": "wall_5.length",
+        "id": "wall_7.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -435,12 +573,14 @@
       "offset_m": 0.5858,
       "peak_strength": 0.514,
       "provenance": "observed",
+      "rule": "",
       "start_m": 0.6973,
       "support": 254,
       "thickness_m": 0.0893
     },
     {
       "axis": "u",
+      "ci_m": 0.0677,
       "coverage": 0.9677,
       "end_m": 6.8383,
       "endpoints_world": {
@@ -454,11 +594,12 @@
         ]
       },
       "extension_m": 0.2511,
-      "id": "wall_6",
+      "id": "wall_8",
+      "inferred": true,
       "length": {
-        "ci_high": 2.0702,
-        "ci_low": 1.532,
-        "id": "wall_6.length",
+        "ci_high": 1.8687,
+        "ci_low": 1.7334,
+        "id": "wall_8.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -470,13 +611,15 @@
       "merged_from": 2,
       "offset_m": 1.9112,
       "peak_strength": 0.3352,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": 5.0372,
       "support": 131,
       "thickness_m": 0.0128
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.9024,
       "end_m": -0.1944,
       "endpoints_world": {
@@ -490,11 +633,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_7",
+      "id": "wall_9",
+      "inferred": false,
       "length": {
         "ci_high": 1.9812,
         "ci_low": 1.942,
-        "id": "wall_7.length",
+        "id": "wall_9.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -507,12 +651,14 @@
       "offset_m": 2.6601,
       "peak_strength": 1.0,
       "provenance": "observed",
+      "rule": "",
       "start_m": -2.156,
       "support": 86,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.985,
       "end_m": 8.094,
       "endpoints_world": {
@@ -526,11 +672,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_8",
+      "id": "wall_10",
+      "inferred": false,
       "length": {
         "ci_high": 3.0874,
         "ci_low": 3.0262,
-        "id": "wall_8.length",
+        "id": "wall_10.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -543,12 +690,14 @@
       "offset_m": 2.708,
       "peak_strength": 1.0,
       "provenance": "observed",
+      "rule": "",
       "start_m": 5.0372,
       "support": 335,
       "thickness_m": 0.1138
     },
     {
       "axis": "u",
+      "ci_m": 0.039,
       "coverage": 0.92,
       "end_m": -1.4188,
       "endpoints_world": {
@@ -562,11 +711,12 @@
         ]
       },
       "extension_m": 0.0602,
-      "id": "wall_9",
+      "id": "wall_11",
+      "inferred": true,
       "length": {
-        "ci_high": 1.3835,
-        "ci_low": 1.2369,
-        "id": "wall_9.length",
+        "ci_high": 1.3492,
+        "ci_low": 1.2711,
+        "id": "wall_11.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -578,13 +728,15 @@
       "merged_from": 1,
       "offset_m": 3.9442,
       "peak_strength": 0.2737,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": -2.7289,
       "support": 58,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 2.9075,
       "endpoints_world": {
@@ -598,11 +750,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_10",
+      "id": "wall_12",
+      "inferred": false,
       "length": {
         "ci_high": 3.3833,
         "ci_low": 3.3163,
-        "id": "wall_10.length",
+        "id": "wall_12.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -615,12 +768,14 @@
       "offset_m": 4.5063,
       "peak_strength": 0.5028,
       "provenance": "observed",
+      "rule": "",
       "start_m": -0.4423,
       "support": 274,
       "thickness_m": 0.196
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.9644,
       "end_m": 2.9075,
       "endpoints_world": {
@@ -634,11 +789,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_11",
+      "id": "wall_13",
+      "inferred": false,
       "length": {
         "ci_high": 2.7077,
         "ci_low": 2.6541,
-        "id": "wall_11.length",
+        "id": "wall_13.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -651,12 +807,14 @@
       "offset_m": 4.8324,
       "peak_strength": 0.7765,
       "provenance": "observed",
+      "rule": "",
       "start_m": 0.2267,
       "support": 407,
       "thickness_m": 0.0196
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.9506,
       "end_m": 6.435,
       "endpoints_world": {
@@ -670,11 +828,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_12",
+      "id": "wall_14",
+      "inferred": false,
       "length": {
         "ci_high": 2.4088,
         "ci_low": 2.3611,
-        "id": "wall_12.length",
+        "id": "wall_14.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -687,12 +846,14 @@
       "offset_m": 5.1072,
       "peak_strength": 0.4441,
       "provenance": "observed",
+      "rule": "",
       "start_m": 4.0501,
       "support": 215,
       "thickness_m": 0.1665
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": -1.2116,
       "endpoints_world": {
@@ -706,11 +867,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_13",
+      "id": "wall_15",
+      "inferred": false,
       "length": {
         "ci_high": 1.5325,
         "ci_low": 1.5021,
-        "id": "wall_13.length",
+        "id": "wall_15.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -723,12 +885,14 @@
       "offset_m": 5.6297,
       "peak_strength": 0.4246,
       "provenance": "observed",
+      "rule": "",
       "start_m": -2.7289,
       "support": 120,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.9474,
       "end_m": 6.8041,
       "endpoints_world": {
@@ -742,11 +906,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_14",
+      "id": "wall_16",
+      "inferred": false,
       "length": {
         "ci_high": 2.8497,
         "ci_low": 2.7933,
-        "id": "wall_14.length",
+        "id": "wall_16.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -759,12 +924,14 @@
       "offset_m": 8.5381,
       "peak_strength": 0.4721,
       "provenance": "observed",
+      "rule": "",
       "start_m": 3.9827,
       "support": 160,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0467,
       "coverage": 1.0,
       "end_m": 5.6297,
       "endpoints_world": {
@@ -778,11 +945,12 @@
         ]
       },
       "extension_m": 0.1116,
-      "id": "wall_15",
+      "id": "wall_17",
+      "inferred": true,
       "length": {
-        "ci_high": 1.8139,
-        "ci_low": 1.557,
-        "id": "wall_15.length",
+        "ci_high": 1.7322,
+        "ci_low": 1.6387,
+        "id": "wall_17.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -794,13 +962,15 @@
       "merged_from": 1,
       "offset_m": -2.7289,
       "peak_strength": 0.2109,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": 3.9442,
       "support": 119,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9884,
       "end_m": 2.2942,
       "endpoints_world": {
@@ -814,11 +984,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_16",
+      "id": "wall_18",
+      "inferred": false,
       "length": {
         "ci_high": 2.5895,
         "ci_low": 2.5382,
-        "id": "wall_16.length",
+        "id": "wall_18.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -831,12 +1002,14 @@
       "offset_m": -2.3766,
       "peak_strength": 0.1754,
       "provenance": "observed",
+      "rule": "",
       "start_m": -0.2696,
       "support": 118,
       "thickness_m": 0.0381
     },
     {
       "axis": "v",
+      "ci_m": 0.0315,
       "coverage": 0.875,
       "end_m": 3.8703,
       "endpoints_world": {
@@ -850,11 +1023,12 @@
         ]
       },
       "extension_m": 0.0103,
-      "id": "wall_17",
+      "id": "wall_19",
+      "inferred": true,
       "length": {
-        "ci_high": 1.2327,
-        "ci_low": 1.1878,
-        "id": "wall_17.length",
+        "ci_high": 1.2418,
+        "ci_low": 1.1787,
+        "id": "wall_19.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -866,13 +1040,54 @@
       "merged_from": 1,
       "offset_m": -0.1944,
       "peak_strength": 0.3445,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": 2.6601,
       "support": 43,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.1418,
+      "coverage": 0.0,
+      "end_m": 0.8121,
+      "endpoints_world": {
+        "a": [
+          -0.3358,
+          0.0843
+        ],
+        "b": [
+          -0.2968,
+          0.8287
+        ]
+      },
+      "extension_m": 0.7455,
+      "id": "wall_20",
+      "inferred": true,
+      "length": {
+        "ci_high": 0.8873,
+        "ci_low": 0.6036,
+        "id": "wall_20.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.7455
+      },
+      "merged_from": 1,
+      "offset_m": 0.3397,
+      "peak_strength": 0.0,
+      "provenance": "inferred_extension",
+      "rule": "dangling_end_meets_wall",
+      "start_m": 0.0666,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 2.7621,
       "endpoints_world": {
@@ -886,11 +1101,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_18",
+      "id": "wall_21",
+      "inferred": false,
       "length": {
         "ci_high": 1.9695,
         "ci_low": 1.9305,
-        "id": "wall_18.length",
+        "id": "wall_21.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -903,12 +1119,53 @@
       "offset_m": 0.3397,
       "peak_strength": 0.334,
       "provenance": "observed",
+      "rule": "",
       "start_m": 0.8121,
       "support": 135,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.1079,
+      "coverage": 0.0,
+      "end_m": 0.5858,
+      "endpoints_world": {
+        "a": [
+          -0.6928,
+          0.103
+        ],
+        "b": [
+          -0.6657,
+          0.6215
+        ]
+      },
+      "extension_m": 0.5192,
+      "id": "wall_22",
+      "inferred": true,
+      "length": {
+        "ci_high": 0.627,
+        "ci_low": 0.4113,
+        "id": "wall_22.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.5192
+      },
+      "merged_from": 1,
+      "offset_m": 0.6973,
+      "peak_strength": 0.0,
+      "provenance": "inferred_extension",
+      "rule": "dangling_end_meets_wall",
+      "start_m": 0.0666,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9843,
       "end_m": 4.8324,
       "endpoints_world": {
@@ -922,11 +1179,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_19",
+      "id": "wall_23",
+      "inferred": false,
       "length": {
         "ci_high": 4.2891,
         "ci_low": 4.2042,
-        "id": "wall_19.length",
+        "id": "wall_23.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -939,12 +1197,14 @@
       "offset_m": 0.6973,
       "peak_strength": 0.7203,
       "provenance": "observed",
+      "rule": "",
       "start_m": 0.5858,
       "support": 516,
       "thickness_m": 0.1356
     },
     {
       "axis": "v",
+      "ci_m": 0.039,
       "coverage": 0.9889,
       "end_m": 9.0163,
       "endpoints_world": {
@@ -958,11 +1218,12 @@
         ]
       },
       "extension_m": 0.06,
-      "id": "wall_20",
+      "id": "wall_24",
+      "inferred": true,
       "length": {
-        "ci_high": 4.6151,
-        "ci_low": 4.4049,
-        "id": "wall_20.length",
+        "ci_high": 4.5551,
+        "ci_low": 4.4649,
+        "id": "wall_24.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -974,13 +1235,15 @@
       "merged_from": 1,
       "offset_m": 2.9075,
       "peak_strength": 1.0,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": 4.5063,
       "support": 522,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9829,
       "end_m": 3.8446,
       "endpoints_world": {
@@ -994,11 +1257,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_21",
+      "id": "wall_25",
+      "inferred": false,
       "length": {
         "ci_high": 5.0659,
         "ci_low": 4.9656,
-        "id": "wall_21.length",
+        "id": "wall_25.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1011,12 +1275,14 @@
       "offset_m": 3.7179,
       "peak_strength": 0.7203,
       "provenance": "observed",
+      "rule": "",
       "start_m": -1.1711,
       "support": 762,
       "thickness_m": 0.3274
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9677,
       "end_m": 6.4893,
       "endpoints_world": {
@@ -1030,11 +1296,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_22",
+      "id": "wall_26",
+      "inferred": false,
       "length": {
         "ci_high": 1.3959,
         "ci_low": 1.3683,
-        "id": "wall_22.length",
+        "id": "wall_26.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1047,12 +1314,14 @@
       "offset_m": 4.0501,
       "peak_strength": 0.3152,
       "provenance": "observed",
+      "rule": "",
       "start_m": 5.1072,
       "support": 109,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.98,
       "end_m": 5.1072,
       "endpoints_world": {
@@ -1066,11 +1335,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_23",
+      "id": "wall_27",
+      "inferred": false,
       "length": {
         "ci_high": 3.228,
         "ci_low": 3.164,
-        "id": "wall_23.length",
+        "id": "wall_27.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1083,12 +1353,14 @@
       "offset_m": 5.0372,
       "peak_strength": 0.6785,
       "provenance": "observed",
+      "rule": "",
       "start_m": 1.9112,
       "support": 445,
       "thickness_m": 0.1467
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9231,
       "end_m": 7.4816,
       "endpoints_world": {
@@ -1102,11 +1374,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_24",
+      "id": "wall_28",
+      "inferred": false,
       "length": {
         "ci_high": 1.2625,
         "ci_low": 1.2375,
-        "id": "wall_24.length",
+        "id": "wall_28.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1119,12 +1392,14 @@
       "offset_m": 5.7137,
       "peak_strength": 0.2359,
       "provenance": "observed",
+      "rule": "",
       "start_m": 6.2316,
       "support": 84,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": -2.3593,
       "endpoints_world": {
@@ -1138,11 +1413,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_25",
+      "id": "wall_29",
+      "inferred": false,
       "length": {
         "ci_high": 1.2625,
         "ci_low": 1.2375,
-        "id": "wall_25.length",
+        "id": "wall_29.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1155,12 +1431,53 @@
       "offset_m": 6.8041,
       "peak_strength": 0.9436,
       "provenance": "observed",
+      "rule": "",
       "start_m": -3.6093,
       "support": 66,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.2025,
+      "coverage": 0.0,
+      "end_m": -1.2093,
+      "endpoints_world": {
+        "a": [
+          -6.9183,
+          -1.9999
+        ],
+        "b": [
+          -6.8581,
+          -0.8515
+        ]
+      },
+      "extension_m": 0.0,
+      "id": "wall_30",
+      "inferred": true,
+      "length": {
+        "ci_high": 1.3525,
+        "ci_low": 0.9475,
+        "id": "wall_30.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 1.15
+      },
+      "merged_from": 1,
+      "offset_m": 6.8041,
+      "peak_strength": 0.0,
+      "provenance": "inferred_occluded",
+      "rule": "furniture_in_front_of_gap",
+      "start_m": -2.3593,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 0.9407,
       "endpoints_world": {
@@ -1174,11 +1491,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_26",
+      "id": "wall_31",
+      "inferred": false,
       "length": {
         "ci_high": 2.1715,
         "ci_low": 2.1285,
-        "id": "wall_26.length",
+        "id": "wall_31.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1191,12 +1509,131 @@
       "offset_m": 6.8041,
       "peak_strength": 0.9436,
       "provenance": "observed",
+      "rule": "",
       "start_m": -1.2093,
       "support": 162,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.2951,
+      "coverage": 0.0,
+      "end_m": 2.708,
+      "endpoints_world": {
+        "a": [
+          -6.7456,
+          1.2955
+        ],
+        "b": [
+          -6.6531,
+          3.0604
+        ]
+      },
+      "extension_m": 0.0,
+      "id": "wall_32",
+      "inferred": true,
+      "length": {
+        "ci_high": 2.0623,
+        "ci_low": 1.4722,
+        "id": "wall_32.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 1.7672
+      },
+      "merged_from": 1,
+      "offset_m": 6.8041,
+      "peak_strength": 0.0,
+      "provenance": "inferred_occluded",
+      "rule": "furniture_in_front_of_gap",
+      "start_m": 0.9407,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.1756,
+      "coverage": 0.0,
+      "end_m": 1.9112,
+      "endpoints_world": {
+        "a": [
+          -6.7456,
+          1.2955
+        ],
+        "b": [
+          -6.6948,
+          2.2647
+        ]
+      },
+      "extension_m": 0.9705,
+      "id": "wall_33",
+      "inferred": true,
+      "length": {
+        "ci_high": 1.1461,
+        "ci_low": 0.7949,
+        "id": "wall_33.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.9705
+      },
+      "merged_from": 1,
+      "offset_m": 6.8041,
+      "peak_strength": 0.0,
+      "provenance": "inferred_extension",
+      "rule": "dangling_end_meets_wall",
+      "start_m": 0.9407,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.1495,
+      "coverage": 0.0,
+      "end_m": 2.708,
+      "endpoints_world": {
+        "a": [
+          -6.6948,
+          2.2647
+        ],
+        "b": [
+          -6.6531,
+          3.0604
+        ]
+      },
+      "extension_m": 0.7967,
+      "id": "wall_34",
+      "inferred": true,
+      "length": {
+        "ci_high": 0.9462,
+        "ci_low": 0.6472,
+        "id": "wall_34.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.7967
+      },
+      "merged_from": 1,
+      "offset_m": 6.8041,
+      "peak_strength": 0.0,
+      "provenance": "inferred_extension",
+      "rule": "dangling_end_meets_wall",
+      "start_m": 1.9112,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9429,
       "end_m": 4.3407,
       "endpoints_world": {
@@ -1210,11 +1647,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_27",
+      "id": "wall_35",
+      "inferred": false,
       "length": {
         "ci_high": 1.6491,
         "ci_low": 1.6164,
-        "id": "wall_27.length",
+        "id": "wall_35.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1227,12 +1665,53 @@
       "offset_m": 6.8041,
       "peak_strength": 0.9436,
       "provenance": "observed",
+      "rule": "",
       "start_m": 2.708,
       "support": 87,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.3525,
+      "coverage": 0.0,
+      "end_m": 6.4907,
+      "endpoints_world": {
+        "a": [
+          -6.5676,
+          4.6909
+        ],
+        "b": [
+          -6.4551,
+          6.8379
+        ]
+      },
+      "extension_m": 0.0,
+      "id": "wall_36",
+      "inferred": true,
+      "length": {
+        "ci_high": 2.5025,
+        "ci_low": 1.7975,
+        "id": "wall_36.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 2.15
+      },
+      "merged_from": 1,
+      "offset_m": 6.8041,
+      "peak_strength": 0.0,
+      "provenance": "inferred_occluded",
+      "rule": "furniture_in_front_of_gap",
+      "start_m": 4.3407,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 8.5381,
       "endpoints_world": {
@@ -1246,11 +1725,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_28",
+      "id": "wall_37",
+      "inferred": false,
       "length": {
         "ci_high": 2.0678,
         "ci_low": 2.0269,
-        "id": "wall_28.length",
+        "id": "wall_37.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1263,12 +1743,14 @@
       "offset_m": 6.8041,
       "peak_strength": 0.9436,
       "provenance": "observed",
+      "rule": "",
       "start_m": 6.4907,
       "support": 110,
       "thickness_m": 0.0
     }
   ],
-  "wall_count": 28,
+  "unknown_gaps": [],
+  "wall_count": 37,
   "warnings": [
     "stage1_layer_capped: wall cells were subsampled by stage 1",
     "low evidence_explained_kept 36% (5893 of 9219 kept cells unexplained)"

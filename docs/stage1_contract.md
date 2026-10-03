@@ -100,8 +100,11 @@ artifact only** — `layers.wall_cells` (`x`/`z`/`support`), `layers.floor_cells
 sidecar. It never re-reads the raw cloud, so *this artifact + config fully determine
 it* (byte-reproducible). It applies the `min_height_bins` support gate, takes **every**
 histogram peak, keeps contiguous runs >= `min_run_m`, merges parallel segments within
-`merge_tol_m`, and joins L/T junctions within `join_tol_m`. It reports
-`evidence_explained` (share of wall cells within `evidence_tol_m` of a segment).
+`merge_tol_m`, joins L/T junctions within `join_tol_m`, and finally **completes** the
+walls (`geometry/wall_complete.py`): a gap the camera crossed becomes an opening,
+furniture-in-front or a short dropout is bridged, and dangling ends extend to a
+perpendicular wall. It reports `evidence_explained` (share of wall cells within
+`evidence_tol_m` of a segment).
 
 Because each layer is capped here at `EVIDENCE_LAYER_CAP`, stage 2 warns
 `stage1_layer_capped` and fits the deterministic subsample when the true count

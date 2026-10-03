@@ -136,27 +136,37 @@ outermost lines); that is **rejected** here because the seed `c00a170fe1` has
      peak's line, contiguous runs (gap <= `run_gap_m`) of length >= `min_run_m`
      become segments `{axis, offset, start, end, support, coverage}`;
   4. **merge** parallel segments within `merge_tol_m` into one wall with a thickness;
-  5. **join** L/T junctions within `join_tol_m` by extending/trimming; an outward
-     snap is `inferred` and widens the length interval by the extension length.
+  5. **join** L/T junctions within `join_tol_m` (endpoint snapping);
+  6. **complete** (`geometry/wall_complete.py`, adapted from the `wall_complete.py`
+     prototype): bridge broken collinear lines **without erasing openings** — a gap
+     the camera crossed is an **opening** (never bridged); furniture in front →
+     `inferred_occluded`; gap ≤ `dropout_max_m` → `inferred_dropout`; otherwise
+     `unknown` (left open, flagged). Dangling ends extend to a perpendicular wall
+     (`inferred_extension`). Every inferred piece's interval is
+     `ci_base_m + ci_per_m · assumed_length`.
   Every threshold is an I4 `outline` key (new: `merge_tol_m`, `join_tol_m`,
-  `evidence_tol_m`, all append-only); no frozen-interface change.
+  `evidence_tol_m`, `collinear_tol_m`, `occ_band_m`, `occ_min_cells`,
+  `dropout_max_m`, `max_extend_m`, `perp_tol_m`, `ci_base_m`, `ci_per_m`, all
+  append-only); no frozen-interface change.
 
 **Explainability / evidence.** Each segment carries `support`, `coverage`,
-`peak_strength` and `provenance` (`observed` | `inferred`). `evidence_explained` =
-share of wall **cells** within `evidence_tol_m` (5 cm) of a segment, reported over
-*all* cells and over the support-gated `kept` cells; unexplained cells are counted
-and drawn **red** in the SVG (segments blue, inferred orange). The camera path
+`provenance` (`observed` | `inferred_occluded` | `inferred_dropout` |
+`inferred_extension`) and the firing `rule`. `evidence_explained` = share of wall
+**cells** within `evidence_tol_m` (5 cm) of a segment, reported over *all* cells and
+over the support-gated `kept` cells (computed on the observed segments, so inferred
+bridges do not inflate it). Unexplained cells are counted and drawn **red**;
+segments blue, inferred orange, openings green, unknown gaps purple. The camera path
 start/end are marked (stage-1 addition).
 
 **Results (three seeds, stride 20).** "before" = the rejected rectangle.
 
-| Capture | angle | before (rect) | segments | inferred | evidence_explained (all / kept) | unexplained cells |
-|---|---|---|---|---|---|---|
-| `c00a170fe1` | 22.5° | 11.5% | **10** | 1 | 21.0% / 58.9% | 17,383 / 22,007 |
-| `1a8384c3f6` | 87.0° | 5.1% | **28** | 7 | 14.9% / 36.1% | 32,551 / 38,244 |
-| `c7d28f72c6` | 28.5° | 3.8% | **31** | 4 | 16.6% / 40.4% | 42,400 / 50,835 |
+| Capture | angle | before (rect) | segments (obs/inf) | openings | bridges (occl/dropout) + ext | evidence (all / kept) | unexplained |
+|---|---|---|---|---|---|---|---|
+| `c00a170fe1` | 22.5° | 11.5% | **11** (9/2) | 0 | 1 / 0 + 1 | 21.0% / 58.9% | 17,383 |
+| `1a8384c3f6` | 87.0° | 5.1% | **37** (21/16) | 1 | 4 / 0 + 12 | 14.9% / 36.1% | 32,551 |
+| `c7d28f72c6` | 28.5° | 3.8% | **41** (27/14) | 1 | 4 / 0 + 10 | 16.6% / 40.4% | 42,400 |
 
-Median wall-length interval: ±1.8 cm / ±2.6 cm / ±2.4 cm. Per-segment lengths,
+Median wall-length interval: ±1.8 cm / ±3.2 cm / ±3.2 cm. Per-segment lengths,
 support/coverage and the full before/after breakdown live in
 `docs/plans/04i-stage2-report.md` and `bench/stage2_{before,after}/`.
 
@@ -167,12 +177,16 @@ support/coverage and the full before/after breakdown live in
 - `evidence_explained` over *all* wall cells is low (15-21%) because ~58% of the
   stage-1 wall cells are single-height-bin noise; over the support-gated `kept`
   cells it is 36-59%, and interior/occluded walls are only partly recovered.
+- On real captures the camera crossed a wide (5-7 m) collinear gap, reported as one
+  large **opening** — the rule is literal (camera crossed ⇒ opening), so wide
+  passages / two wall runs with a walk-through are not further classified yet.
 
-**Tests** `tests/test_stage2_walls.py` (11): outer + inner wall recovery, no closing
-rectangle, support-gate drop count, parallel-face merge with thickness, doorway
-splitting one wall into two runs, junction extension is `inferred` + interval
-widened, full evidence on a clean room, unexplained noise, byte-identical
-determinism, degenerate input, CLI writes segments + camera markers.
-`docs/stage1_contract.md` §2/§6 cover the new `camera_start`/`camera_end` fields.
+**Tests** `tests/test_wall_complete.py` (5, ported from the prototype) and
+`tests/test_stage2_walls.py` (14): outer + inner wall recovery, no closing rectangle,
+support-gate drop count, parallel-face merge with thickness, doorway split, junction
+extension `inferred_extension`, completion rules (dropout bridge, camera-crossed gap
+→ opening, furniture → occluded), evidence coverage, determinism, degenerate input,
+CLI segments + camera markers. `docs/stage1_contract.md` §2/§6 cover the new
+`camera_start`/`camera_end` fields.
 
 

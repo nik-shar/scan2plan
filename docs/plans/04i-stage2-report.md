@@ -21,16 +21,17 @@ stage-1 artifact only. Both were generated on the **same** stage-1 artifacts
 
 ## 2. Summary (three seeds, default stride)
 
-| capture | angle | before evidence_explained | segments | inferred | after (all) | after (kept) | unexplained cells | median wall-length CI |
-|---|---|---|---|---|---|---|---|---|
-| `c00a170fe1` | 22.5° | 11.5% | **10** | 1 | 21.0% | 58.9% | 17,383 / 22,007 | ±1.8 cm |
-| `1a8384c3f6` | 87.0° | 5.1% | **28** | 7 | 14.9% | 36.1% | 32,551 / 38,244 | ±2.6 cm |
-| `c7d28f72c6` | 28.5° | 3.8% | **31** | 4 | 16.6% | 40.4% | 42,400 / 50,835 | ±2.4 cm |
+| capture | angle | before (rect) | segments (obs/inf) | openings | bridges (occl/dropout) + ext | after (all) | after (kept) | unexplained | median wall-CI |
+|---|---|---|---|---|---|---|---|---|---|
+| `c00a170fe1` | 22.5° | 11.5% | **11** (9/2) | 0 | 1 / 0 + 1 | 21.0% | 58.9% | 17,383 | ±1.8 cm |
+| `1a8384c3f6` | 87.0° | 5.1% | **37** (21/16) | 1 | 4 / 0 + 12 | 14.9% | 36.1% | 32,551 | ±3.2 cm |
+| `c7d28f72c6` | 28.5° | 3.8% | **41** (27/14) | 1 | 4 / 0 + 10 | 16.6% | 40.4% | 42,400 | ±3.2 cm |
 
 The rectangle explained only 4–11% of the wall cells and could not represent the
 target capture's **inner walls, wing and enclosed block**. Multi-segment extraction
-finds many more walls (10 / 28 / 31) and roughly doubles the explained share; over
-the plausible (support-gated) cells it reaches 36–59%.
+plus completion finds many more walls (11 / 37 / 41, each with observed and inferred
+pieces) and roughly doubles the explained share; over the plausible (support-gated)
+cells it reaches 36–59%.
 
 ## 3. `c00a170fe1` (the target capture) — segments after
 
@@ -52,6 +53,25 @@ alongside the envelope lines; `wall_10` is a **merged** double-face wall
 (`merged_from=2`, thickness 0.197 m); `wall_6`/`wall_7` split at a doorway gap
 (0.06 → 0.56 m). `wall_4` is `inferred` (extended to meet a junction) and its
 interval (±0.104 m) reflects that extension.
+
+## 3b. Completion outcomes (`geometry/wall_complete.py`)
+
+`openings` are gaps between collinear segments that the **camera path crossed**
+(never bridged). `bridges` are inferred wall pieces that close a broken line:
+furniture in front (`inferred_occluded`) or a short sensor dropout
+(`inferred_dropout`). `extensions` reach a dangling end to a perpendicular wall.
+Every inferred piece's interval half-width is `ci_base_m + ci_per_m · L`.
+
+| capture | openings | occluded | dropout | extensions | unknown gaps |
+|---|---|---|---|---|---|
+| `c00a170fe1` | 0 | 1 | 0 | 1 | 0 |
+| `1a8384c3f6` | 1 | 4 | 0 | 12 | 0 |
+| `c7d28f72c6` | 1 | 4 | 0 | 10 | 0 |
+
+The two real-capture openings are wide (5.23 m and 6.57 m): the camera crossed a
+large collinear gap, which the literal rule records as a single opening (a wide
+passage, or two wall runs with a walk-through between them). No evidence-free gap
+long enough to stay `unknown` survived on the seeds.
 
 ## 4. Honest limitations
 

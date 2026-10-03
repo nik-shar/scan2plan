@@ -4,6 +4,24 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — stage 2 wall completion (bridge broken lines, keep openings)
+- New `src/scan2plan/geometry/wall_complete.py`, adapted from the standalone
+  `wall_complete.py` prototype to our system: I4-config thresholds, typed
+  dataclasses (`WallPiece`/`CompletionParams`/`CompletionResult`), deterministic.
+  Every gap between collinear segments is decided once — camera crossed → **opening**
+  (never bridged); furniture in front → `inferred_occluded`; short gap →
+  `inferred_dropout`; else `unknown` (left open, flagged). Dangling ends extend to a
+  perpendicular wall (`inferred_extension`); intervals are
+  `ci_base_m + ci_per_m · assumed_length`.
+- `reconstruct_walls` runs completion after merge/join; `stage2_walls.json` now
+  carries `openings`, `unknown_gaps`, `completion` and per-segment `provenance`/`rule`
+  (the SVG draws openings green, unknown gaps purple, inferred segments orange).
+- New append-only I4 keys: `collinear_tol_m`, `occ_band_m`, `occ_min_cells`,
+  `dropout_max_m`, `max_extend_m`, `perp_tol_m`, `ci_base_m`, `ci_per_m`.
+- Real seeds: 11 / 37 / 41 segments, 0 / 1 / 1 openings, 1 / 16 / 14 bridge+extension
+  pieces. Tests: `tests/test_wall_complete.py` (ported prototype scenarios) plus
+  stage-2 completion tests.
+
 ### 04i — stage 2: multi-segment wall extraction (from stage 1 only)
 - `src/scan2plan/geometry/walls.py::reconstruct_walls` consumes the frozen
   `stage1_observed.json` (**never** the raw cloud) and emits a `stage2_walls.{json,svg}`

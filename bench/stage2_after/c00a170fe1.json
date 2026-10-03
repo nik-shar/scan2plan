@@ -15,6 +15,13 @@
     "input": 22007,
     "kept": 5029
   },
+  "completion": {
+    "bridged_dropout": 0,
+    "bridged_occluded": 1,
+    "extended": 1,
+    "openings": 0,
+    "unknown_gaps": 0
+  },
   "evidence": {
     "cells_explained": 4624,
     "cells_kept": 5029,
@@ -34,7 +41,7 @@
       5.51
     ]
   },
-  "inferred_count": 1,
+  "inferred_count": 2,
   "junctions": [
     {
       "axis": "u",
@@ -103,10 +110,17 @@
   ],
   "manhattan_angle_deg": 22.5,
   "name": "wall segments",
+  "observed_count": 9,
+  "openings": [],
   "params": {
     "cell_m": 0.02,
+    "ci_base_m": 0.03,
+    "ci_per_m": 0.15,
+    "collinear_tol_m": 0.15,
+    "dropout_max_m": 0.3,
     "evidence_tol_m": 0.05,
     "join_tol_m": 0.3,
+    "max_extend_m": 1.0,
     "merge_tol_m": 0.25,
     "min_height_bins": 4,
     "min_peak_frac": 0.15,
@@ -117,6 +131,7 @@
   "segments": [
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 4.007,
       "endpoints_world": {
@@ -131,6 +146,7 @@
       },
       "extension_m": 0.0,
       "id": "wall_1",
+      "inferred": false,
       "length": {
         "ci_high": 1.5655,
         "ci_low": 1.5345,
@@ -147,12 +163,14 @@
       "offset_m": -5.5306,
       "peak_strength": 0.2584,
       "provenance": "observed",
+      "rule": "",
       "start_m": 2.457,
       "support": 237,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.96,
       "end_m": 2.5674,
       "endpoints_world": {
@@ -167,6 +185,7 @@
       },
       "extension_m": 0.0,
       "id": "wall_2",
+      "inferred": false,
       "length": {
         "ci_high": 1.212,
         "ci_low": 1.188,
@@ -183,12 +202,14 @@
       "offset_m": -4.1257,
       "peak_strength": 0.1857,
       "provenance": "observed",
+      "rule": "",
       "start_m": 1.3674,
       "support": 162,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0,
       "coverage": 0.96,
       "end_m": 3.0482,
       "endpoints_world": {
@@ -203,6 +224,7 @@
       },
       "extension_m": 0.0,
       "id": "wall_3",
+      "inferred": false,
       "length": {
         "ci_high": 1.1582,
         "ci_low": 1.1353,
@@ -219,12 +241,14 @@
       "offset_m": -0.0621,
       "peak_strength": 0.2837,
       "provenance": "observed",
+      "rule": "",
       "start_m": 1.9015,
       "support": 174,
       "thickness_m": 0.0
     },
     {
       "axis": "u",
+      "ci_m": 0.0366,
       "coverage": 0.9754,
       "end_m": 4.8731,
       "endpoints_world": {
@@ -239,9 +263,10 @@
       },
       "extension_m": 0.0441,
       "id": "wall_4",
+      "inferred": true,
       "length": {
-        "ci_high": 6.0801,
-        "ci_low": 5.8724,
+        "ci_high": 6.036,
+        "ci_low": 5.9165,
         "id": "wall_4.length",
         "kind": "wall_length",
         "method": "wall_segment",
@@ -254,13 +279,15 @@
       "merged_from": 1,
       "offset_m": 2.3578,
       "peak_strength": 1.0,
-      "provenance": "inferred",
+      "provenance": "inferred_extension",
+      "rule": "junction_extend",
       "start_m": -1.1031,
       "support": 934,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.96,
       "end_m": 0.0631,
       "endpoints_world": {
@@ -275,6 +302,7 @@
       },
       "extension_m": 0.0,
       "id": "wall_5",
+      "inferred": false,
       "length": {
         "ci_high": 1.212,
         "ci_low": 1.188,
@@ -291,12 +319,53 @@
       "offset_m": -1.1031,
       "peak_strength": 0.5772,
       "provenance": "observed",
+      "rule": "",
       "start_m": -1.1369,
       "support": 151,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.105,
+      "coverage": 0.0,
+      "end_m": 0.5631,
+      "endpoints_world": {
+        "a": [
+          0.4804,
+          -0.995
+        ],
+        "b": [
+          0.9424,
+          -0.8037
+        ]
+      },
+      "extension_m": 0.0,
+      "id": "wall_6",
+      "inferred": true,
+      "length": {
+        "ci_high": 0.605,
+        "ci_low": 0.395,
+        "id": "wall_6.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.5
+      },
+      "merged_from": 1,
+      "offset_m": -1.1031,
+      "peak_strength": 0.0,
+      "provenance": "inferred_occluded",
+      "rule": "furniture_in_front_of_gap",
+      "start_m": 0.0631,
+      "support": 0,
+      "thickness_m": 0.0
+    },
+    {
+      "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9474,
       "end_m": 2.3578,
       "endpoints_world": {
@@ -310,11 +379,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_6",
+      "id": "wall_7",
+      "inferred": false,
       "length": {
         "ci_high": 1.8127,
         "ci_low": 1.7768,
-        "id": "wall_6.length",
+        "id": "wall_7.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -327,12 +397,14 @@
       "offset_m": -1.1031,
       "peak_strength": 0.5772,
       "provenance": "observed",
+      "rule": "",
       "start_m": 0.5631,
       "support": 188,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 2.3578,
       "endpoints_world": {
@@ -346,11 +418,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_7",
+      "id": "wall_8",
+      "inferred": false,
       "length": {
         "ci_high": 2.444,
         "ci_low": 2.3956,
-        "id": "wall_7.length",
+        "id": "wall_8.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -363,12 +436,14 @@
       "offset_m": 1.9015,
       "peak_strength": 0.7295,
       "provenance": "observed",
+      "rule": "",
       "start_m": -0.0621,
       "support": 345,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 2.3578,
       "endpoints_world": {
@@ -382,11 +457,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_8",
+      "id": "wall_9",
+      "inferred": false,
       "length": {
         "ci_high": 1.2835,
         "ci_low": 1.2581,
-        "id": "wall_8.length",
+        "id": "wall_9.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -399,12 +475,14 @@
       "offset_m": 3.2172,
       "peak_strength": 0.2966,
       "provenance": "observed",
+      "rule": "",
       "start_m": 1.087,
       "support": 139,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 0.1693,
       "endpoints_world": {
@@ -418,11 +496,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_9",
+      "id": "wall_10",
+      "inferred": false,
       "length": {
         "ci_high": 3.838,
         "ci_low": 3.762,
-        "id": "wall_9.length",
+        "id": "wall_10.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -435,12 +514,14 @@
       "offset_m": 3.6078,
       "peak_strength": 1.0,
       "provenance": "observed",
+      "rule": "",
       "start_m": -3.6307,
       "support": 483,
       "thickness_m": 0.0
     },
     {
       "axis": "v",
+      "ci_m": 0.0,
       "coverage": 0.9569,
       "end_m": 2.3578,
       "endpoints_world": {
@@ -454,11 +535,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_10",
+      "id": "wall_11",
+      "inferred": false,
       "length": {
         "ci_high": 2.6271,
         "ci_low": 2.575,
-        "id": "wall_10.length",
+        "id": "wall_11.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -471,11 +553,13 @@
       "offset_m": 4.8731,
       "peak_strength": 0.986,
       "provenance": "observed",
+      "rule": "",
       "start_m": -0.2433,
       "support": 696,
       "thickness_m": 0.1966
     }
   ],
-  "wall_count": 10,
+  "unknown_gaps": [],
+  "wall_count": 11,
   "warnings": []
 }
