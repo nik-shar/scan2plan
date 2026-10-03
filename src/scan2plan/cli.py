@@ -20,14 +20,15 @@ import numpy as np
 import typer
 
 from scan2plan import __version__
-from scan2plan.cir import CIR
+from scan2plan.cir import CIR, Measurement, Opening, Room, Surface
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import Config, load_config
 from scan2plan.geometry import observed_evidence, reconstruct_walls
 from scan2plan.geometry.planes import horizontal_planes
+from scan2plan.geometry.rooms import build_stage3
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
-from scan2plan.render import render_evidence_svg, render_walls_svg
+from scan2plan.render import render_evidence_svg, render_plan_svg, render_walls_svg
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -190,17 +191,39 @@ def _report_stage2(stage2: dict[str, object] | None, out_dir: Path) -> None:
         return
     cells = stage2.get("cells", {})
     ev = stage2.get("evidence", {})
+    ln = stage2.get("lengths", {})
+    mr = stage2.get("merge", {})
     typer.echo(
         f"  stage 2 walls: {stage2.get('wall_count')} segments "  # type: ignore[union-attr]
-        f"({stage2.get('inferred_count')} inferred, "  # type: ignore[union-attr]
-        f"{len(stage2.get('openings') or [])} openings, "  # type: ignore[arg-type]
-        f"{len(stage2.get('unknown_gaps') or [])} unknown gaps), "  # type: ignore[arg-type]
-        f"evidence_explained {ev.get('evidence_explained')} "  # type: ignore[union-attr]
+        f"(observed {stage2.get('observed_count')}, "  # type: ignore[union-attr]
+        f"inferred {stage2.get('inferred_count')}) | "  # type: ignore[union-attr]
+        f"openings {len(stage2.get('openings') or [])} (0.5-2.5 m), "  # type: ignore[arg-type]
+        f"open_space {len(stage2.get('open_spaces') or [])} (>2.5 m), "  # type: ignore[arg-type]
+        f"unknown gaps {len(stage2.get('unknown_gaps') or [])}"  # type: ignore[arg-type]
+    )
+    typer.echo(
+        f"  stage 2 length: observed {ln.get('observed_length_m')} m, "  # type: ignore[union-attr]
+        f"inferred {ln.get('inferred_length_m')} m | longest inferred run "  # type: ignore[union-attr]
+        f"{ln.get('longest_inferred_run_m')} m "  # type: ignore[union-attr]
+        f"(over max_extend {ln.get('inferred_runs_over_max_extend')})"  # type: ignore[union-attr]
+    )
+    typer.echo(
+        f"  stage 2 evidence: wall_like {ev.get('wall_like_explained')} "  # type: ignore[union-attr]
+        f"({ev.get('wall_like_frac')}), dense_blobs {ev.get('dense_blobs')} "  # type: ignore[union-attr]
+        f"({ev.get('dense_blob_frac')}), residual_noise {ev.get('residual_noise')} "  # type: ignore[union-attr]
+        f"({ev.get('residual_noise_frac')}), evidence_explained "  # type: ignore[union-attr]
+        f"{ev.get('evidence_explained')} "  # type: ignore[union-attr]
         f"(kept {ev.get('evidence_explained_kept')}, "  # type: ignore[union-attr]
         f"cells kept {cells.get('kept')}/{cells.get('input')})"  # type: ignore[union-attr]
     )
     graph = stage2.get("graph", {})
     counts = graph.get("counts", {}) if isinstance(graph, dict) else {}
+    typer.echo(
+        f"  stage 2 merge: walls {mr.get('segments_before')}->{mr.get('segments_after')} "  # type: ignore[union-attr]
+        f"({mr.get('thick_walls')} thick) | nodes {mr.get('nodes_before')}->"  # type: ignore[union-attr]
+        f"{mr.get('nodes_after')} | crosses {mr.get('crosses_before')}->"  # type: ignore[union-attr]
+        f"{mr.get('crosses_after')}"  # type: ignore[union-attr]
+    )
     typer.echo(
         f"  stage 2 graph: {graph.get('node_count')} nodes / "  # type: ignore[union-attr]
         f"{graph.get('edge_count')} edges (L {counts.get('L')}, T {counts.get('T')}, "  # type: ignore[union-attr]
@@ -210,6 +233,141 @@ def _report_stage2(stage2: dict[str, object] | None, out_dir: Path) -> None:
         typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
     typer.echo(f"  wrote {out_dir / 'stage2_walls.json'}")
     typer.echo(f"  wrote {out_dir / 'stage2_walls.svg'}")
+
+
+def _measure(
+    mid: str, kind: str, value: float, low: float, high: float, method: str, cir: CIR
+) -> Measurement:
+    """Build an I6 Measurement, clamping the interval to contain the value."""
+    v = float(value)
+    lo, hi = float(low), float(high)
+    lo, hi = min(lo, v), max(hi, v)
+    return Measurement(
+        id=mid,
+        kind=kind,
+        value=round(v, 4),
+        unit="m2" if kind == "floor_area" else "m",
+        ci_low=round(lo, 4),
+        ci_high=round(hi, 4),
+        method=method,
+        tier=cir.session.tier,
+    )
+
+
+def _stage3_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object] | None:
+    """Compute stage 3 (rooms) from the stage-1/2 artifacts and write its JSON + plan.svg."""
+    stage1_path = out_dir / "stage1_observed.json"
+    stage2_path = out_dir / "stage2_walls.json"
+    if not (stage1_path.is_file() and stage2_path.is_file()):
+        return None
+    stage1 = json.loads(stage1_path.read_text())
+    stage2 = json.loads(stage2_path.read_text())
+    points: np.ndarray | None = None
+    floor_y = 0.0
+    if cir.recon is not None and cir.recon.points_ref is not None:
+        points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
+        planes = horizontal_planes(points[:, 1]) if points.size else []
+        floor_y = (
+            planes[0].height_m
+            if planes
+            else (float(np.percentile(points[:, 1], 2)) if points.size else 0.0)
+        )
+    stage3 = build_stage3(stage1, stage2, cfg, floor_y=floor_y, points_xyz=points)
+    (out_dir / "stage3_rooms.json").write_text(json.dumps(stage3, indent=2, sort_keys=True) + "\n")
+    render_plan_svg(stage3, out_dir / "plan.svg", title=f"{cir.session.id} - final plan")
+    return stage3
+
+
+def _cir_from_stage3(cir: CIR, stage3: dict[str, object]) -> None:
+    """Populate rooms/surfaces/openings/measures from the stage-3 payload (I2/I3)."""
+    rooms = stage3.get("rooms") or []
+    assert isinstance(rooms, list)
+    surfaces: list[Surface] = []
+    measures: list[Measurement] = []
+    for r in rooms:
+        rid = str(r["id"])
+        boundary = [[float(p[0]), float(p[1])] for p in r["polygon_world"]]
+        area = r["area"]
+        ceil = r["ceiling"]
+        area_m = _measure(
+            f"{rid}.floor_area",
+            "floor_area",
+            float(area["value"]),
+            float(area["ci_low"]),
+            float(area["ci_high"]),
+            "shoelace_montecarlo",
+            cir,
+        )
+        ceil_m = _measure(
+            f"{rid}.ceiling_height",
+            "ceiling_height",
+            float(ceil["value"]),
+            float(ceil["ci_low"]),
+            float(ceil["ci_high"]),
+            str(ceil["method"]),
+            cir,
+        )
+        cir.rooms.append(Room(id=rid, boundary=boundary, floor_area=area_m, ceiling_height=ceil_m))
+        measures.extend([area_m, ceil_m])
+        for k, wl in enumerate(r["wall_lengths"], start=1):
+            sid = f"{rid}_wall_{k}"
+            surfaces.append(Surface(id=sid, room_id=rid, type="wall", polygon=[]))
+            wl_m = _measure(
+                f"{sid}.length",
+                "wall_length",
+                float(wl["length_m"]),
+                float(wl["ci_low_m"]),
+                float(wl["ci_high_m"]),
+                "wall_segment",
+                cir,
+            )
+            wl_m.sources = [str(wl["provenance"])]
+            measures.append(wl_m)
+    cir.surfaces.extend(surfaces)
+    surface_ids = {s.id for s in surfaces}
+    openings = stage3.get("openings") or []
+    assert isinstance(openings, list)
+    for o in openings:
+        joins = o.get("rooms")
+        if not joins:
+            continue  # an opening with no two rooms cannot be keyed to a surface (I3 rule 3)
+        rid = str(joins[0])
+        host = next((s for s in surfaces if s.room_id == rid), None)
+        if host is None or host.id not in surface_ids:
+            continue
+        width = float(o["width_m"])
+        w_m = _measure(
+            f"{o['id']}.width",
+            "opening_width",
+            width,
+            width * 0.9,
+            width * 1.1,
+            "camera_path_cross",
+            cir,
+        )
+        w_m.sources = [str(o["provenance"])]
+        height_val = float(next((r["ceiling"]["value"] for r in rooms if str(r["id"]) == rid), 2.4))
+        h_m = _measure(
+            f"{o['id']}.height",
+            "opening_height",
+            height_val,
+            height_val * 0.95,
+            height_val * 1.05,
+            "prior",
+            cir,
+        )
+        cir.openings.append(
+            Opening(
+                id=str(o["id"]),
+                room_id=rid,
+                surface_id=host.id,
+                kind=str(o["kind"]),
+                width=w_m,
+                height=h_m,
+            )
+        )
+        measures.extend([w_m, h_m])
+    cir.measures = measures
 
 
 def _write_stub_plan(cir: CIR, out_dir: Path) -> Path:
@@ -232,6 +390,50 @@ def _write_stub_plan(cir: CIR, out_dir: Path) -> Path:
             typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
     return plan_path
+
+
+def _write_plan(cir: CIR, stage3: dict[str, object], out_dir: Path) -> Path:
+    """Write a schema-valid, status=computed plan.json populated from stage 3."""
+    cir.status = "computed"
+    cir.rooms = []
+    cir.surfaces = []
+    cir.openings = []
+    cir.measures = []
+    cir.stitch = None
+    _cir_from_stage3(cir, stage3)
+    plan_path = out_dir / "plan.json"
+    plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
+    errors = validate_plan(json.loads(plan_path.read_text()))
+    if errors:
+        for err in errors:
+            typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    return plan_path
+
+
+def _report_stage3(stage3: dict[str, object] | None, out_dir: Path) -> None:
+    """Print the stage-3 room summary (shared by ``run``/``ablate``)."""
+    if stage3 is None:
+        return
+    typer.echo(
+        f"  stage 3 rooms: {stage3.get('room_count')} "  # type: ignore[union-attr]
+        f"| unobserved_enclosed {len(stage3.get('unobserved_enclosed') or [])} "  # type: ignore[arg-type]
+        f"| openings {len(stage3.get('openings') or [])} "  # type: ignore[arg-type]
+        f"| plan_score {stage3.get('plan_score')}"  # type: ignore[union-attr]
+    )
+    rooms = stage3.get("rooms") or []
+    for r in rooms:  # type: ignore[union-attr]
+        a = r["area"]
+        ceil = r["ceiling"]
+        typer.echo(
+            f"    {r['id']}: area {a['value']} m2 [{a['ci_low']}, {a['ci_high']}] "
+            f"| perimeter observed {r['perimeter']['observed_frac']} "
+            f"| ceiling {ceil['value']} ({ceil['status']})"
+        )
+    for w in stage3.get("warnings", []):  # type: ignore[union-attr]
+        typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
+    typer.echo(f"  wrote {out_dir / 'stage3_rooms.json'}")
+    typer.echo(f"  wrote {out_dir / 'plan.svg'}")
 
 
 @app.command()
@@ -266,11 +468,15 @@ def run(
         typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
         stage1 = {"layer_counts": {}, "warnings": [str(exc)]}
     stage2 = _stage2_artifacts(cir, out_dir, cfg)
-    plan_path = _write_stub_plan(cir, out_dir)
+    stage3 = _stage3_artifacts(cir, out_dir, cfg)
+    plan_path = (
+        _write_plan(cir, stage3, out_dir) if stage3 is not None else _write_stub_plan(cir, out_dir)
+    )
 
     quality = cir.recon.quality
     typer.echo(
-        f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)} status=not_computed"
+        f"[{cir.session.id}] tier={cir.session.tier} frames={len(cir.frames)} "
+        f"status={'computed' if stage3 is not None else 'not_computed'}"
     )
     typer.echo(
         f"  recon: track_len={int(quality.track_len or 0)} coverage={quality.coverage} "
@@ -286,8 +492,9 @@ def run(
     typer.echo(f"  wrote {out_dir / 'stage1_observed.json'}")
     typer.echo(f"  wrote {out_dir / 'stage1_observed.svg'}")
     _report_stage2(stage2, out_dir)
+    _report_stage3(stage3, out_dir)
     typer.echo(f"  wrote {plan_path}")
-    typer.echo("  note: stages beyond 2 (closing/stitch/damage) are being redesigned.")
+    typer.echo("  note: stitch/damage/calibration (S4-S8) are pending; rooms are stage 3.")
 
 
 @app.command()
@@ -353,10 +560,15 @@ def ablate(
     except ValueError as exc:
         typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
     _report_stage2(_stage2_artifacts(cir, out_dir, cfg), out_dir)
-    _write_stub_plan(cir, out_dir)
+    stage3 = _stage3_artifacts(cir, out_dir, cfg)
+    _report_stage3(stage3, out_dir)
+    if stage3 is not None:
+        _write_plan(cir, stage3, out_dir)
+    else:
+        _write_stub_plan(cir, out_dir)
     typer.secho(
-        "  ablation not computed: drift ablation depends on the stage 3+ rebuild "
-        "(plan 04i). Wrote stage-1 evidence + stage-2 walls + stub plan instead.",
+        "  ablation not computed: drift ablation depends on the stitch stage (04d). "
+        "Wrote stage-1 evidence + stage-2 walls + stage-3 rooms + plan instead.",
         fg=typer.colors.YELLOW,
         err=True,
     )
