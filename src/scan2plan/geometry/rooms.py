@@ -1082,50 +1082,115 @@ def _ceiling_prior(p: RoomParams) -> dict[str, object]:
     }
 
 
+def _footprint_frac_uv(
+    uv_near: NDArray[np.float64], room_area_m2: float, bin_m: float = 0.10
+) -> float:
+    """Share of the room footprint covered by near-ceiling points (raster, filled)."""
+    if uv_near.shape[0] == 0 or room_area_m2 <= 0.0:
+        return 0.0
+    ix, iz = np.floor(uv_near / bin_m).astype(np.int64).T
+    i0, j0 = int(ix.min()), int(iz.min())
+    mask = np.zeros((int(ix.max()) - i0 + 1, int(iz.max()) - j0 + 1), dtype=bool)
+    mask[ix - i0, iz - j0] = True
+    mask = ndimage.binary_closing(mask, iterations=1)
+    mask = ndimage.binary_fill_holes(mask)
+    return float(mask.sum()) * bin_m * bin_m / room_area_m2
+
+
 def room_ceiling(
     polygon_uv: list[tuple[float, float]],
     points_xyz: NDArray[np.float64] | None,
     theta: float,
     floor_y: float,
     p: RoomParams,
+    ceil_y: float | None = None,
 ) -> dict[str, object]:
-    """Ceiling height for a room, or an ``unmeasured`` prior when no ceiling cells exist."""
+    """Ceiling height for a room, or an ``unmeasured`` prior (fix 3).
+
+    Candidate peaks are the histogram maxima of in-room points above
+    ``floor + ceiling_min_above_floor_m``; when the capture has a stage-1 global
+    ceiling plane (``ceil_y``) only peaks within ``ceiling_global_tol_m`` of it are
+    considered (so a wardrobe top or a sloped surface cannot win). A candidate is
+    accepted only if it has >= ``ceiling_min_cells`` cells, covers >=
+    ``ceiling_min_footprint_frac`` of the room footprint and sits in
+    ``[ceiling_height_low_m, ceiling_height_high_m]``; otherwise the room reports the
+    prior interval. The candidate table is recorded for diagnosis.
+    """
     if points_xyz is None or points_xyz.size == 0 or len(polygon_uv) < 3:
         return _ceiling_prior(p)
+    poly = Polygon(polygon_uv)
+    if not poly.is_valid:
+        poly = poly.buffer(0)
     uv = rotate_uv(points_xyz[:, [0, 2]], theta)
-    u0, u1 = min(c[0] for c in polygon_uv), max(c[0] for c in polygon_uv)
-    v0, v1 = min(c[1] for c in polygon_uv), max(c[1] for c in polygon_uv)
-    inside_bbox = (uv[:, 0] >= u0) & (uv[:, 0] <= u1) & (uv[:, 1] >= v0) & (uv[:, 1] <= v1)
-    ys = [
-        float(points_xyz[idx, 1])
-        for idx in np.flatnonzero(inside_bbox)
-        if float(points_xyz[idx, 1]) > floor_y + p.ceiling_min_above_floor_m
-        and point_in_polygon(float(uv[idx, 0]), float(uv[idx, 1]), polygon_uv)
-    ]
-    if not ys:
+    inside = shapely.contains_xy(poly, uv[:, 0], uv[:, 1])
+    above = inside & (points_xyz[:, 1] > floor_y + p.ceiling_min_above_floor_m)
+    ys = points_xyz[above, 1]
+    if ys.size == 0:
         return _ceiling_prior(p)
-    arr = np.array(ys, dtype=np.float64)
-    edges = np.arange(float(arr.min()), float(arr.max()) + p.ceiling_bin_m, p.ceiling_bin_m)
+    edges = np.arange(float(ys.min()), float(ys.max()) + p.ceiling_bin_m, p.ceiling_bin_m)
     if len(edges) < 2:
         return _ceiling_prior(p)
-    hist, edges = np.histogram(arr, bins=edges)
-    peak = int(np.argmax(hist))
-    centre = float((edges[peak] + edges[peak + 1]) / 2.0)
-    near = arr[np.abs(arr - centre) <= 0.05]
-    if near.size < max(50, 0.10 * arr.size):
-        return _ceiling_prior(p)  # no concentrated plane: report a prior, not a number
-    rms = float(np.std(near)) if near.size else 0.0
-    height = centre - floor_y
-    half = max(p.ci_base_m, 2.0 * rms)
-    return {
-        "status": "measured",
-        "value": round(height, 4),
-        "ci_low": round(max(0.0, height - half), 4),
-        "ci_high": round(height + half, 4),
-        "method": "plane_fit",
-        "provenance": OBSERVED,
-        "support": round(float(near.size) / float(arr.size), 4) if arr.size else 0.0,
-    }
+    hist, edges = np.histogram(ys, bins=edges)
+    centres = (edges[:-1] + edges[1:]) / 2.0
+    cands = [
+        i
+        for i in range(len(hist))
+        if hist[i] > 0
+        and (i == 0 or hist[i] >= hist[i - 1])
+        and (i == len(hist) - 1 or hist[i] >= hist[i + 1])
+    ]
+    if not cands:
+        return _ceiling_prior(p)
+    ref = (ceil_y - floor_y) if ceil_y is not None else None
+    if ref is not None:
+        near_ref = [i for i in cands if abs(centres[i] - floor_y - ref) <= p.ceiling_global_tol_m]
+        if near_ref:
+            cands = near_ref
+    order = sorted(cands, key=lambda i: (-hist[i], centres[i]))
+    area = abs(poly.area) if poly.area > 0 else polygon_area(polygon_uv)
+    table: list[dict[str, object]] = []
+    chosen: dict[str, object] | None = None
+    for i in order:
+        centre = float(centres[i])
+        near = np.abs(ys - centre) <= 0.05
+        height = centre - floor_y
+        frac = _footprint_frac_uv(uv[above][near], area)
+        ok = (
+            p.ceiling_height_low_m <= height <= p.ceiling_height_high_m
+            and int(near.sum()) >= p.ceiling_min_cells
+            and frac >= p.ceiling_min_footprint_frac
+        )
+        table.append(
+            {
+                "height_m": round(height, 4),
+                "cells": int(near.sum()),
+                "footprint_frac": round(frac, 4),
+                "accepted": ok,
+            }
+        )
+        if ok and chosen is None:
+            rms = float(np.std(ys[near]))
+            half = max(p.ci_base_m, 2.0 * rms)
+            chosen = {
+                "status": "measured",
+                "value": round(height, 4),
+                "ci_low": round(max(0.0, height - half), 4),
+                "ci_high": round(height + half, 4),
+                "method": "plane_fit",
+                "provenance": OBSERVED,
+                "support": round(frac, 4),
+                "cells": int(near.sum()),
+            }
+    if chosen is None:
+        prior = _ceiling_prior(p)
+        prior["candidates"] = table[:6]
+        if ref is not None:
+            prior["global_reference_m"] = round(ref, 4)
+        return prior
+    chosen["candidates"] = table[:6]
+    if ref is not None:
+        chosen["global_reference_m"] = round(ref, 4)
+    return chosen
 
 
 # ---------------------------------------------------------------------------
@@ -1319,6 +1384,7 @@ def _make_room(
     theta: float,
     floor_y: float,
     p: RoomParams,
+    ceil_y: float | None = None,
 ) -> Room | None:
     """Build a room from a region: polygon, edges, area, MC intervals, wall lengths, ceiling."""
     corners = region_polygon(reg.cells)
@@ -1333,7 +1399,7 @@ def _make_room(
     total = sum(e.end - e.start for e in edges)
     obs = sum(e.end - e.start for e in edges if e.provenance == OBSERVED)
     indices = sorted({e.provenance for e in edges})
-    ceiling = room_ceiling(polygon_uv, points_xyz, theta, floor_y, p)
+    ceiling = room_ceiling(polygon_uv, points_xyz, theta, floor_y, p, ceil_y)
     return Room(
         id="",
         status=reg.status,
@@ -1600,6 +1666,7 @@ def build_stage3(
     *,
     floor_y: float = 0.0,
     points_xyz: NDArray[np.float64] | None = None,
+    ceil_y: float | None = None,
 ) -> dict[str, object]:
     """Stage 3 entry point: closure -> rooms -> per-room measurements -> openings.
 
@@ -1667,7 +1734,7 @@ def build_stage3(
                 }
             )
             continue
-        room = _make_room(reg, grid, closed, node_uv, points_xyz, theta, floor_y, p)
+        room = _make_room(reg, grid, closed, node_uv, points_xyz, theta, floor_y, p, ceil_y)
         if room is None:
             continue
         if (

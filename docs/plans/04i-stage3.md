@@ -108,6 +108,17 @@ The per-invariant values are recorded in `stage3_rooms.json` under `invariants`
    `non_room_fragments` / `min_room_merges`). A polygon-level guard applies the same
    gate after snapping. Rooms are never emitted below the gate.
 
+3. **Ceiling plane selection.** `room_ceiling` now takes the stage-1 global ceiling
+   plane (`ceil_y`, previously never passed): candidate peaks are the in-room
+   height-histogram maxima, and when a global ceiling exists only peaks within
+   `ceiling_global_tol_m` of it are considered (a wardrobe top / sloped surface can
+   no longer win). A candidate is accepted only with >= `ceiling_min_cells` cells,
+   >= `ceiling_min_footprint_frac` of the room footprint and a height in
+   `[ceiling_height_low_m, ceiling_height_high_m]`; otherwise the room reports the
+   prior. The candidate table (height / cells / footprint / accepted) is recorded in
+   each room's `ceiling`. Across-room spread > `ceiling_spread_max_m` flags
+   `inconsistent_ceiling`.
+
 ## Known limitations (honest; rule 7)
 
 - The footprints are ragged: stage-1 floor evidence is sparse (10 cm cells, and the

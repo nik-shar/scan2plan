@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import replace
 
 import numpy as np
 
@@ -265,7 +266,28 @@ def test_closure_cost_prefers_supported_lines() -> None:
     assert c_sup < c_bare  # a supported line is cheaper to accept
 
 
-def test_find_dangling_ends_and_plan_score_types() -> None:
+def test_room_ceiling_uses_global_reference_and_gates() -> None:
+    """Fix 3: the global ceiling filters wrong peaks; gates reject weak/low planes."""
+    from scan2plan.geometry.rooms import room_ceiling, room_params_from_config
+
+    p = room_params_from_config(Config())
+    p = replace(p, ceiling_min_cells=200, ceiling_min_footprint_frac=0.2, mc_samples=10)
+    poly = [(0.0, 0.0), (4.0, 0.0), (4.0, 3.0), (0.0, 3.0)]  # 12 m2
+    xs, zs = np.meshgrid(np.linspace(0.2, 3.8, 30), np.linspace(0.2, 2.8, 24))
+    good = np.column_stack([xs.ravel(), np.full(xs.size, 2.5), zs.ravel()])
+    # A denser, higher plane (a wardrobe top / sloped surface) must not win.
+    wrong = np.column_stack([xs.ravel(), np.full(xs.size, 3.2), zs.ravel()])
+    pts = np.vstack([good, wrong, wrong]).astype(np.float64)
+    chosen = room_ceiling(poly, pts, 0.0, 0.0, p, ceil_y=2.5)
+    assert chosen["status"] == "measured" and abs(float(chosen["value"]) - 2.5) < 0.02
+    # Without the reference the (denser) 3.2 m plane wins - the reference is what fixes it.
+    unreferenced = room_ceiling(poly, pts, 0.0, 0.0, p, ceil_y=None)
+    assert abs(float(unreferenced["value"]) - 3.2) < 0.02
+    # A low slab (< 2.1 m) is never a ceiling.
+    low = np.column_stack([xs.ravel(), np.full(xs.size, 2.0), zs.ravel()]).astype(np.float64)
+    prior = room_ceiling(poly, low, 0.0, 0.0, p, ceil_y=None)
+    assert prior["status"] == "unmeasured" and prior["provenance"] == "prior"
+
     walls = [
         WallPiece(axis=1, offset=0.0, start=0.0, end=1.0),
         WallPiece(axis=1, offset=0.0, start=3.0, end=4.0),

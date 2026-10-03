@@ -4,6 +4,21 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — fix 3: ceiling plane selection (global reference + support gates)
+- `build_stage3`/`_make_room` now receive the stage-1 global ceiling plane (`ceil_y`)
+  and pass it to `room_ceiling` (it was computed but never passed).
+- `room_ceiling` considers every in-room height-histogram peak, restricted to peaks
+  within `ceiling_global_tol_m` (0.30) of the global ceiling when one exists; a
+  candidate is accepted only with >= `ceiling_min_cells` (200) cells, >=
+  `ceiling_min_footprint_frac` (0.20) footprint coverage and a height in
+  `[2.1, 4.0]` m, else the room is `unmeasured` with the prior. The candidate table
+  is recorded per room for diagnosis.
+- Seeds: `c00a170fe1` room_4's 2.01 m furniture-top peak is now rejected
+  (`accepted=false`, height < 2.1) -> unmeasured prior; `c7d28f72c6` no longer picks
+  the 3.08 m peak (filtered by the 2.438 m reference) - room_2 measures 2.27 m and
+  room_1's partial 2.47 m plane is honestly rejected on footprint. `ceiling_sanity`
+  passes on all three seeds. Test added to `tests/test_rooms.py`.
+
 ### 04i — fix 2: minimum room rule (merge small regions / non_room_fragment)
 - New `rooms.apply_min_room_rule` (region level, deterministic): a region that fails
   `min_room_area_m2` (2.0 m²) or `min_room_inradius_m` (0.6 m) is merged into the

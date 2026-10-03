@@ -275,7 +275,7 @@ def _stage3_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
             else (float(np.percentile(points[:, 1], 2)) if points.size else 0.0)
         )
         ceil_y = planes[1].height_m if len(planes) > 1 else None
-    stage3 = build_stage3(stage1, stage2, cfg, floor_y=floor_y, points_xyz=points)
+    stage3 = build_stage3(stage1, stage2, cfg, floor_y=floor_y, points_xyz=points, ceil_y=ceil_y)
     invariants = check_stage3_invariants(
         stage1, stage2, stage3, cfg, points_xyz=points, floor_y=floor_y
     )
