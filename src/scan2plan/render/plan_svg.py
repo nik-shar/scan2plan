@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from scan2plan.render.svg import clipped_wall_lines
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.render.plan_svg")
@@ -47,11 +48,16 @@ def render_plan_svg(
     stage3: dict,
     out_path: Path,
     *,
+    stage2: dict | None = None,
     title: str = "scan2plan final plan",
     px_per_m: float = 80.0,
     margin: float = 90.0,
 ) -> Path:
-    """Render the final dimensioned plan (rooms, walls, openings, scale bar)."""
+    """Render the final dimensioned plan (rooms, walls, openings, scale bar).
+
+    Walls are drawn only as clipped segments of their stage-2 graph edges (observed
+    solid, inferred dashed), so no wall line runs past the node it ends at.
+    """
     rooms = stage3.get("rooms", []) or []
     enclosed = stage3.get("unobserved_enclosed", []) or []
     openings = stage3.get("openings", []) or []
@@ -124,6 +130,19 @@ def render_plan_svg(
                 f'<path d="M {ax:.1f} {ay:.1f} A 12 12 0 0 1 {bx:.1f} {by:.1f}" '
                 'fill="none" stroke="#28a745" stroke-width="2"/>'
             )
+    if stage2 is not None:
+        for a_w, b_w, prov in clipped_wall_lines(stage2):
+            (ax, ay), (bx, by) = pix(*a_w), pix(*b_w)
+            if prov == "observed":
+                parts.append(
+                    f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" '
+                    'stroke="#111" stroke-width="2"/>'
+                )
+            else:
+                parts.append(
+                    f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}" '
+                    'stroke="#c25a12" stroke-width="2" stroke-dasharray="8 4"/>'
+                )
     parts.append("</g>")
 
     bar_y = margin + h_px + 12
@@ -155,4 +174,3 @@ def render_plan_svg(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(parts) + "\n")
     return out_path
-    return xs, zs

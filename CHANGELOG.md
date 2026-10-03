@@ -4,6 +4,20 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — fix 1: room-polygon overlap/validity + wall render clipping
+- All 9 seed room polygons were self-intersecting (bow-tie): `simplify_polygon` now
+  collapses consecutive parallel edges before rebuilding corners (the
+  `_corners_from_offsets` fallback that produced bow-ties) and falls back to the
+  valid raw region boundary if a snapped loop is still not simple.
+- New `rooms.resolve_overlaps`: polygons are made simple and pairwise disjoint
+  (intersections assigned to the region that owns more of them; the other polygon is
+  clipped and its edges/area/CI re-derived). Reported in `stage3_rooms.json`
+  (`overlap_resolved`). `no_overlap` now passes on all three seeds.
+- New `render/svg.py::clipped_wall_lines`: walls are drawn only as segments clipped
+  to their graph nodes; `plan.svg` draws them (observed solid, inferred dashed) and
+  the dead `return` in `render_plan_svg` is removed. `render_clip` passes on all three.
+- `tests/test_invariants.py` render-clip case unchanged; suite green.
+
 ### 04i — stage-3 invariant checks (fail loudly)
 - New `src/scan2plan/geometry/invariants.py`: `check_stage3_invariants` runs after
   every `run` / `ablate` and prints six invariants with their values, exiting

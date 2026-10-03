@@ -289,7 +289,9 @@ def _stage3_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
         "room_height_m": round(ceil_y - floor_y, 4) if ceil_y is not None else None,
     }
     (out_dir / "stage3_rooms.json").write_text(json.dumps(stage3, indent=2, sort_keys=True) + "\n")
-    render_plan_svg(stage3, out_dir / "plan.svg", title=f"{cir.session.id} - final plan")
+    render_plan_svg(
+        stage3, out_dir / "plan.svg", stage2=stage2, title=f"{cir.session.id} - final plan"
+    )
     return stage3
 
 

@@ -36,8 +36,10 @@ import math
 from dataclasses import dataclass, field
 
 import numpy as np
+import shapely
 from numpy.typing import NDArray
 from scipy import ndimage
+from shapely.geometry import Polygon
 
 from scan2plan.config import Config
 from scan2plan.geometry.wall_complete import WallPiece, _path_crosses
@@ -84,6 +86,15 @@ class RoomParams:
     odometry_ci_frac: float
     node_merge_m: float
     seed: int
+    # --- fix-loop gates (plan 04i fix loop; defaults keep older constructions valid) ---
+    overlap_tol_m2: float = 0.0001
+    min_room_area_m2: float = 2.0
+    min_room_inradius_m: float = 0.6
+    ceiling_min_cells: int = 200
+    ceiling_min_footprint_frac: float = 0.20
+    ceiling_height_low_m: float = 2.1
+    ceiling_height_high_m: float = 4.0
+    ceiling_global_tol_m: float = 0.30
 
 
 def room_params_from_config(cfg: Config) -> RoomParams:
@@ -110,6 +121,14 @@ def room_params_from_config(cfg: Config) -> RoomParams:
         odometry_ci_frac=o.odometry_ci_frac,
         node_merge_m=o.node_merge_m,
         seed=cfg.seed,
+        overlap_tol_m2=o.overlap_tol_m2,
+        min_room_area_m2=o.min_room_area_m2,
+        min_room_inradius_m=o.min_room_inradius_m,
+        ceiling_min_cells=o.ceiling_min_cells,
+        ceiling_min_footprint_frac=o.ceiling_min_footprint_frac,
+        ceiling_height_low_m=o.ceiling_height_low_m,
+        ceiling_height_high_m=o.ceiling_height_high_m,
+        ceiling_global_tol_m=o.ceiling_global_tol_m,
     )
 
 
@@ -623,6 +642,63 @@ class Room:
     wall_lengths: list[dict[str, object]]
     cells: int
     ceiling: dict[str, object] = field(default_factory=dict)
+    region_cells: set[tuple[int, int]] = field(default_factory=set)
+
+
+def _merge_loop(loop: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Drop collinear/spike vertices of a float rectilinear loop (keeps it simple)."""
+    if len(loop) > 1 and loop[0] == loop[-1]:
+        loop = loop[:-1]
+    out: list[tuple[float, float]] = []
+    n = len(loop)
+    for k in range(n):
+        prev, cur, nxt = loop[k - 1], loop[k], loop[(k + 1) % n]
+        cross = (cur[0] - prev[0]) * (nxt[1] - cur[1]) - (cur[1] - prev[1]) * (nxt[0] - cur[0])
+        if abs(cross) > 1e-9:
+            out.append(cur)
+    return out or loop
+
+
+def _collapse_parallel(edges: list[RoomEdge]) -> list[RoomEdge]:
+    """Merge runs of consecutive same-axis edges into one (keeps the widest span).
+
+    Snapping can move two parallel edges of a staircase boundary onto the same
+    offset, leaving the edge between them degenerate; ``_corners_from_offsets`` then
+    falls back to a corner that self-intersects the loop (a bow-tie). Collapsing the
+    run first keeps every corner the intersection of a perpendicular pair.
+    """
+    if not edges:
+        return edges
+    out: list[RoomEdge] = []
+
+    def _merge(a: RoomEdge, b: RoomEdge) -> RoomEdge:
+        return RoomEdge(
+            a.axis,
+            a.offset,
+            min(a.start, b.start),
+            max(a.end, b.end),
+            a.wall if a.wall is not None else b.wall,
+            a.provenance,
+            max(a.ci_m, b.ci_m),
+        )
+
+    for e in edges:
+        if out and out[-1].axis == e.axis:
+            out[-1] = _merge(out[-1], e)
+        else:
+            out.append(e)
+    if len(out) > 1 and out[0].axis == out[-1].axis:
+        out[0] = _merge(out[0], out.pop())
+    return out
+
+
+def _ring_to_corners(poly: Polygon) -> list[tuple[float, float]]:
+    """Exterior ring of an axis-aligned polygon -> rectilinear corners (no collinear)."""
+    if poly.is_empty:
+        return []
+    geom = poly if poly.geom_type == "Polygon" else max(poly.geoms, key=lambda g: g.area)
+    pts = [(round(float(x), 6), round(float(y), 6)) for x, y in geom.exterior.coords[:-1]]
+    return _merge_loop(pts)
 
 
 def _directed_boundary(cells: set[tuple[int, int]]) -> dict[tuple[int, int], list[tuple[int, int]]]:
@@ -790,12 +866,18 @@ def simplify_polygon(
     uv = [grid.uv(i, j) for i, j in corners]
     edges = _edges_from_uv(uv, walls)
     for _ in range(4):
-        edges = snap_offsets(edges, walls, merge_tol_m, min_step_m)
+        edges = _collapse_parallel(snap_offsets(edges, walls, merge_tol_m, min_step_m))
         uv2 = _dedupe_loop(_corners_from_offsets(edges, [e.offset for e in edges]))
         if len(uv2) < 4 or len(uv2) == len(uv):
-            return _edges_from_uv(uv2, walls), uv2
+            final = _edges_from_uv(uv2, walls)
+            if Polygon(uv2).is_valid or len(uv2) < 4:
+                return final, uv2
+            return _edges_from_uv(uv, walls), uv  # bow-tie: keep the valid raw boundary
         uv = uv2
         edges = _edges_from_uv(uv, walls)
+    if not Polygon(uv).is_valid:
+        raw = [grid.uv(i, j) for i, j in corners]
+        return _edges_from_uv(raw, walls), raw
     return edges, uv
 
 
@@ -1265,7 +1347,105 @@ def _make_room(
         wall_lengths=wl,
         cells=len(reg.cells),
         ceiling=ceiling,
+        region_cells=set(reg.cells),
     )
+
+
+def _rebuild_room(
+    room: Room,
+    corners_uv: list[tuple[float, float]],
+    closed: list[WallPiece],
+    nodes_uv: NDArray[np.float64],
+    p: RoomParams,
+) -> Room:
+    """Re-derive a room's edges/area/CI/wall lengths after its polygon changed."""
+    edges = _collapse_parallel(_edges_from_uv(corners_uv, closed))
+    if len(edges) < 4:
+        return room
+    area_ci, len_ci = monte_carlo_room(edges, p)
+    wl = wall_lengths(edges, len_ci, nodes_uv, p)
+    total = sum(e.end - e.start for e in edges)
+    obs = sum(e.end - e.start for e in edges if e.provenance == OBSERVED)
+    return Room(
+        id=room.id,
+        status=room.status,
+        indices=sorted({e.provenance for e in edges}),
+        polygon_uv=corners_uv,
+        edges=edges,
+        area_m2=polygon_area(corners_uv),
+        area_ci=area_ci,
+        perimeter_observed_m=obs,
+        perimeter_total_m=total,
+        wall_lengths=wl,
+        cells=room.cells,
+        ceiling=room.ceiling,
+        region_cells=room.region_cells,
+    )
+
+
+def _cells_in(poly: Polygon, cells: set[tuple[int, int]], grid: Grid) -> int:
+    """How many region cells (centres) fall inside a uv polygon."""
+    if not cells or poly.is_empty:
+        return 0
+    uv = np.array([grid.uv(i, j) for i, j in sorted(cells)], dtype=np.float64)
+    inside = shapely.contains_xy(poly, uv[:, 0], uv[:, 1])
+    return int(inside.sum())
+
+
+def resolve_overlaps(
+    rooms: list[Room],
+    closed: list[WallPiece],
+    nodes_uv: NDArray[np.float64],
+    grid: Grid,
+    p: RoomParams,
+) -> tuple[list[Room], list[dict[str, object]]]:
+    """Make room polygons simple and disjoint (fix 1).
+
+    Each overlapping pair is resolved once, deterministically: the intersection is
+    assigned to the room whose region owns more of it (ties -> the larger room) and
+    subtracted from the other, whose polygon/edges/area are then re-derived. A
+    second pass catches overlaps reintroduced by the first. Polygons that are not
+    simple are repaired by ``buffer(0)`` first, so ``no_overlap`` can pass.
+    """
+    report: list[dict[str, object]] = []
+    tol = p.overlap_tol_m2
+    for i, r in enumerate(rooms):
+        poly = Polygon(r.polygon_uv)
+        if not poly.is_valid:
+            corners = _ring_to_corners(poly.buffer(0))
+            if len(corners) >= 4:
+                rooms[i] = _rebuild_room(r, corners, closed, nodes_uv, p)
+    for _ in range(2):
+        changed = False
+        n = len(rooms)
+        for i in range(n):
+            for j in range(i + 1, n):
+                a, b = Polygon(rooms[i].polygon_uv), Polygon(rooms[j].polygon_uv)
+                if not a.is_valid or not b.is_valid:
+                    continue
+                inter = a.intersection(b)
+                if inter.is_empty or float(inter.area) <= tol:
+                    continue
+                ci = _cells_in(inter, rooms[i].region_cells, grid)
+                cj = _cells_in(inter, rooms[j].region_cells, grid)
+                loser = j if (ci, rooms[i].area_m2) >= (cj, rooms[j].area_m2) else i
+                winner = i if loser == j else j
+                keep = a if loser == i else b
+                corners = _ring_to_corners(keep.difference(inter))
+                if len(corners) < 4:
+                    continue
+                rooms[loser] = _rebuild_room(rooms[loser], corners, closed, nodes_uv, p)
+                report.append(
+                    {
+                        "rooms": [rooms[winner].id, rooms[loser].id],
+                        "overlap_m2": round(float(inter.area), 6),
+                        "assigned_to": rooms[winner].id,
+                    }
+                )
+                changed = True
+        if not changed:
+            break
+    return rooms, report
 
 
 def build_stage3(
@@ -1334,6 +1514,8 @@ def build_stage3(
         if room is not None:
             rooms.append(room)
 
+    rooms, overlap_report = resolve_overlaps(rooms, closed, node_uv, grid, p)
+    rooms = [r for r in rooms if r.area_m2 > 0.0]
     rooms.sort(key=lambda r: (-r.area_m2, min(r.polygon_uv)))
     for k, room in enumerate(rooms):
         room.id = f"room_{k + 1}"
@@ -1398,6 +1580,7 @@ def build_stage3(
         ],
         "room_count": len(rooms),
         "rooms": [_room_out(r, theta) for r in rooms],
+        "overlap_resolved": overlap_report,
         "unobserved_enclosed": enclosed,
         "openings": [
             {

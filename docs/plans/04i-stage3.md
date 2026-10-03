@@ -89,6 +89,18 @@ The per-invariant values are recorded in `stage3_rooms.json` under `invariants`
 | `ceiling_global_tol_m` | 0.30 | per-room peak vs the stage-1 global ceiling |
 | `overlap_tol_m2` | 0.0001 | invariant: total pairwise room overlap (1 cm²) |
 
+## Fix log (plan 04i fix loop — one commit per step)
+
+1. **Overlap + render clipping.** `simplify_polygon` now collapses consecutive
+   parallel edges (the bow-tie source in `_corners_from_offsets`) and falls back to
+   the valid raw region boundary when a snapped loop is still not simple;
+   `resolve_overlaps` makes room polygons simple and disjoint (each intersection is
+   assigned to the room whose region owns more of it; the other is clipped and its
+   edges/area/CI re-derived) and is reported in `stage3_rooms.json`
+   (`overlap_resolved`). `render/svg.py::clipped_wall_lines` draws every wall only as
+   a segment clipped to its graph nodes; `plan.svg` now draws those walls (observed
+   solid, inferred dashed).
+
 ## Known limitations (honest; rule 7)
 
 - The footprints are ragged: stage-1 floor evidence is sparse (10 cm cells, and the

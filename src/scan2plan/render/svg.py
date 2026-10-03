@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
+from scan2plan.geometry.rooms import uv_to_world
 from scan2plan.geometry.walls import (
     dense_blob_mask,
     explained_mask,
@@ -25,6 +26,45 @@ from scan2plan.geometry.walls import (
 
 def _esc(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def clipped_wall_lines(stage2: dict) -> list[tuple[tuple[float, float], tuple[float, float], str]]:
+    """Wall lines to draw, clipped to their graph nodes (world xz + provenance).
+
+    Each stage-2 segment is clipped to the extent of the graph nodes on its wall
+    line (``node_tol_m``/``collinear_tol_m``), so a drawn wall never extends beyond
+    the node it ends at (invariant ``render_clip``). Segments with no line nodes are
+    kept as-is (nothing to clip to).
+    """
+    params = stage2.get("params", {})
+    line_tol = max(
+        float(params.get("node_tol_m", 0.05)), float(params.get("collinear_tol_m", 0.15))
+    )
+    theta = math.radians(float(stage2.get("manhattan_angle_deg", 0.0) or 0.0))
+    graph = stage2.get("graph") or {}
+    nodes_uv = [(float(n["uv"][0]), float(n["uv"][1])) for n in (graph.get("nodes") or [])]
+    out: list[tuple[tuple[float, float], tuple[float, float], str]] = []
+    for s in stage2.get("segments", []) or []:
+        axis = 0 if s.get("axis") == "u" else 1
+        off = float(s.get("offset_m", 0.0))
+        lo, hi = float(s.get("start_m", 0.0)), float(s.get("end_m", 0.0))
+        perp = [u if axis == 0 else v for u, v in nodes_uv]
+        along = [v if axis == 0 else u for u, v in nodes_uv]
+        line = sorted(a for p, a in zip(perp, along, strict=True) if abs(p - off) <= line_tol)
+        if line:
+            lo, hi = max(lo, line[0]), min(hi, line[-1])
+        if hi - lo <= 1e-6:
+            continue
+        a_uv = (off, lo) if axis == 0 else (lo, off)
+        b_uv = (off, hi) if axis == 0 else (hi, off)
+        out.append(
+            (
+                uv_to_world(a_uv[0], a_uv[1], theta),
+                uv_to_world(b_uv[0], b_uv[1], theta),
+                str(s.get("provenance", "observed")),
+            )
+        )
+    return out
 
 
 def _cell_xy(c: object) -> tuple[float, float]:
@@ -233,19 +273,9 @@ def render_walls_svg(
         else:
             colour = (232, 168, 160)  # residual noise
         sq(float(c["x"]), float(c["z"]), cell_px, colour)
-    for s in segs:
-        ep = s.get("endpoints_world")
-        if not ep:
-            continue
-        line_colour = (230, 120, 20) if s.get("inferred") else (30, 80, 220)
-        draw.line(
-            [
-                pix(float(ep["a"][0]), float(ep["a"][1])),
-                pix(float(ep["b"][0]), float(ep["b"][1])),
-            ],
-            fill=line_colour,
-            width=3,
-        )
+    for a_w, b_w, prov in clipped_wall_lines(stage2):
+        line_colour = (230, 120, 20) if prov != "observed" else (30, 80, 220)
+        draw.line([pix(a_w[0], a_w[1]), pix(b_w[0], b_w[1])], fill=line_colour, width=3)
     for o in stage2.get("openings", []) or []:
         ep = o.get("endpoints_world")
         if ep:

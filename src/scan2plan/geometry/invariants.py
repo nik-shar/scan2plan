@@ -304,6 +304,9 @@ def _inv_render_clip(stage2: dict[str, object], cfg: Config) -> Invariant:
         return Invariant("render_clip", SKIP, "no wall segments/graph", {})
     node_tol = cfg.outline.node_tol_m
     node_merge = cfg.outline.node_merge_m
+    # Collinear pieces (within ``collinear_tol_m``) share one graph line, whose nodes
+    # may sit on the line's own offset rather than a piece's offset.
+    line_tol = max(node_tol, cfg.outline.collinear_tol_m)
     nodes_uv = [(float(n["uv"][0]), float(n["uv"][1])) for n in graph.get("nodes", [])]  # type: ignore[union-attr]
     overshoot: list[dict[str, object]] = []
     total = 0.0
@@ -314,19 +317,22 @@ def _inv_render_clip(stage2: dict[str, object], cfg: Config) -> Invariant:
         lo, hi = float(seg.get("start_m", 0.0)), float(seg.get("end_m", 0.0))
         perp = [u if axis == 0 else v for u, v in nodes_uv]
         along = [v if axis == 0 else u for u, v in nodes_uv]
-        on = sorted(
-            a
-            for p, a in zip(perp, along, strict=True)
-            if abs(p - off) <= node_tol and lo - node_merge <= a <= hi + node_merge
-        )
-        over = (hi - lo) if not on else max(0.0, on[0] - lo) + max(0.0, hi - on[-1])
+        # Nodes anywhere on this wall line (offset match only): a segment may end at
+        # an interior provenance boundary, but the *line* must not run past its nodes.
+        line_nodes = sorted(a for p, a in zip(perp, along, strict=True) if abs(p - off) <= line_tol)
+        if not line_nodes:
+            over = hi - lo
+        else:
+            over = max(0.0, line_nodes[0] - lo) + max(0.0, hi - line_nodes[-1])
         if over > node_merge + 1e-6:
             overshoot.append(
                 {
                     "axis": seg.get("axis"),
                     "offset_m": off,
                     "span_m": [round(lo, 3), round(hi, 3)],
-                    "nodes_m": [round(on[0], 3), round(on[-1], 3)] if on else None,
+                    "nodes_m": [round(line_nodes[0], 3), round(line_nodes[-1], 3)]
+                    if line_nodes
+                    else None,
                     "overshoot_m": round(over, 4),
                 }
             )
