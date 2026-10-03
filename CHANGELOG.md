@@ -4,17 +4,22 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
-### 04i — stage 2: deterministic wall reconstruction (from stage 1 only)
-- New `src/scan2plan/geometry/walls.py::reconstruct_walls`: consumes the frozen
+### 04i — stage 2: multi-segment wall extraction (from stage 1 only)
+- `src/scan2plan/geometry/walls.py::reconstruct_walls` consumes the frozen
   `stage1_observed.json` (**never** the raw cloud) and emits a `stage2_walls.{json,svg}`
-  sidecar — wall lines/segments only (no polygon/corners/openings; those are stage 3).
-- Deterministic (no RNG): support gate (`min_height_bins`) + Manhattan frame + the
-  per-side nearest long line beyond the camera path (ported `room_fit` logic).
-- Real seeds: `c00a170fe1` 3/4 walls observed (angle 23°); `1a8384c3f6` and
-  `c7d28f72c6` 4/4 (angle 87° / 28.5°), both with a `stage1_layer_capped` warning
-  (stage-1's `EVIDENCE_LAYER_CAP = 60000`).
-- `scan2plan run` / `ablate` now also write the stage-2 artifacts; docs updated
-  (`docs/stage1_contract.md` §6, `docs/plans/04i` §8).
+  sidecar of **wall segments** — **no closing rectangle**, no rooms/openings (stage 3).
+- Deterministic (no RNG): support gate + Manhattan frame (22.5° on `c00a170fe1`) +
+  **every** histogram peak → runs ≥ `min_run_m` → merge parallel faces within
+  `merge_tol_m` (thickness) → join L/T junctions (`inferred` extensions widen the
+  interval). New append-only I4 keys: `merge_tol_m`, `join_tol_m`, `evidence_tol_m`.
+- Replaces the min-bounding-rectangle stage 2 (git tag `stage2-rectangle`):
+  evidence explained over the kept cells rises from ~4–11% (rect) to 36–59%, with
+  10 / 28 / 31 segments on the three seeds. Before/after in
+  `docs/plans/04i-stage2-report.md` and `bench/stage2_{before,after}/`.
+- Stage-1 addition: the camera path now records `camera_start` / `camera_end`
+  (marked green / red in the SVGs).
+- `scan2plan run` / `ablate` write the stage-2 artifacts; docs updated
+  (`docs/stage1_contract.md` §2/§6, `docs/plans/04i` §8).
 
 ### 04i cleanup — freeze stage 1, archive stage 2/3
 - Tagged `stage1-frozen` (stage-1 observed evidence).

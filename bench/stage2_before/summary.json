@@ -1,0 +1,26 @@
+[
+  {
+    "capture": "c00a170fe1",
+    "before_walls_observed": 4,
+    "before_rect_segments": 4,
+    "cells_total": 22007,
+    "cells_explained": 2526,
+    "evidence_explained": 0.1148
+  },
+  {
+    "capture": "1a8384c3f6",
+    "before_walls_observed": 4,
+    "before_rect_segments": 4,
+    "cells_total": 38244,
+    "cells_explained": 1961,
+    "evidence_explained": 0.0513
+  },
+  {
+    "capture": "c7d28f72c6",
+    "before_walls_observed": 4,
+    "before_rect_segments": 4,
+    "cells_total": 50835,
+    "cells_explained": 1932,
+    "evidence_explained": 0.038
+  }
+]

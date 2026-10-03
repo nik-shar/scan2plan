@@ -116,47 +116,63 @@ Every `plan.json` passes `scan2plan validate`. `room_fit` self-test: **12.77 m²
 G-10 port (`wall_model`) · G-11 config (`outline`) · G-12 stage driver · G-13 CLI +
 stage JSONs · G-14 SVG fixes · G-15 tests · G-16 docs. One commit per stage.
 
-## 8. Stage-2 redefinition (implemented)
+## 8. Stage 2 — deterministic multi-segment wall extraction (implemented)
 
-Stage 2 was redefined from *classification* to **deterministic wall
-reconstruction** (agreed boundary; stage 3 — closing/classification — is still
-being redesigned):
+Stage 2 was redefined from *classification* to **multi-segment wall extraction**
+(agreed boundary; stage 3 — closing/rooms — is still being redesigned). The first
+rectangle implementation treated the room as a minimum bounding rectangle (the four
+outermost lines); that is **rejected** here because the seed `c00a170fe1` has
+**inner walls, a wing and an enclosed block** that a rectangle cannot represent.
 
 - **Input = the frozen stage-1 artifact only** (`stage1_observed.json`); stage 2
   never reads the raw cloud, so it is a pure, byte-reproducible function of stage 1.
-- **Output = a sidecar** (`stage2_walls.json` + `stage2_walls.svg`): wall records
-  only. There is **no** polygon, corner, opening or measurement (those stay in
-  stage 3), and no RNG (bootstrap intervals are deferred to stage 3/uncertainty).
+- **Output = a sidecar** (`stage2_walls.json` + `stage2_walls.svg`): wall
+  **segments** only. There is **no** closing rectangle, and no rooms/openings (those
+  are stage 3). No RNG - the same artifact + config gives byte-identical JSON.
 - **Pipeline** (`src/scan2plan/geometry/walls.py::reconstruct_walls`):
-  1. support gate (`min_height_bins`) — drop cells seen in too few height bins;
-  2. Manhattan frame from histogram sharpness;
-  3. per side, the nearest well-supported *long* line beyond the camera path
-     (`cam_margin_m`, `min_run_m`, `run_gap_m`, `min_peak_frac`, `peak_smooth`);
-  4. clip each line to the room extent -> length/coverage/support.
-  It ports the tested `room_fit`/`wall_model` primitives; every threshold is an
-  existing I4 `outline` key (no new config, no interface change).
+  1. **support gate** (`min_height_bins`) - drop cells seen in too few height bins;
+  2. **Manhattan frame** from histogram sharpness (**22.5 deg** on `c00a170fe1`);
+  3. **all peaks -> runs**: for *each* axis take **every** histogram peak; on each
+     peak's line, contiguous runs (gap <= `run_gap_m`) of length >= `min_run_m`
+     become segments `{axis, offset, start, end, support, coverage}`;
+  4. **merge** parallel segments within `merge_tol_m` into one wall with a thickness;
+  5. **join** L/T junctions within `join_tol_m` by extending/trimming; an outward
+     snap is `inferred` and widens the length interval by the extension length.
+  Every threshold is an I4 `outline` key (new: `merge_tol_m`, `join_tol_m`,
+  `evidence_tol_m`, all append-only); no frozen-interface change.
 
-**Explainability.** Each wall carries the rule that selected it
-(`nearest_supported_long_line_beyond_camera`); every dropped cell carries
-`support_below_min_height_bins`; a side with no line is `unobserved` (never
-guessed); weak coverage is warned, not hidden.
+**Explainability / evidence.** Each segment carries `support`, `coverage`,
+`peak_strength` and `provenance` (`observed` | `inferred`). `evidence_explained` =
+share of wall **cells** within `evidence_tol_m` (5 cm) of a segment, reported over
+*all* cells and over the support-gated `kept` cells; unexplained cells are counted
+and drawn **red** in the SVG (segments blue, inferred orange). The camera path
+start/end are marked (stage-1 addition).
 
-**Measured (three seeds).**
+**Results (three seeds, stride 20).** "before" = the rejected rectangle.
 
-| Capture | angle | cells kept/input | walls observed | warnings |
-|---|---|---|---|---|
-| `c00a170fe1` | 23.0° | 2,814 / 15,823 | 3/4 (`v_min` unobserved) | weak coverage `v_max` |
-| `1a8384c3f6` | 87.0° | 9,219 / 76,487 | 4/4 | layer capped; weak `u_min,u_max,v_min` |
-| `c7d28f72c6` | 28.5° | 14,380 / 101,669 | 4/4 | layer capped; weak `u_min,v_min,v_max` |
+| Capture | angle | before (rect) | segments | inferred | evidence_explained (all / kept) | unexplained cells |
+|---|---|---|---|---|---|---|
+| `c00a170fe1` | 22.5° | 11.5% | **10** | 1 | 21.0% / 58.9% | 17,383 / 22,007 |
+| `1a8384c3f6` | 87.0° | 5.1% | **28** | 7 | 14.9% / 36.1% | 32,551 / 38,244 |
+| `c7d28f72c6` | 28.5° | 3.8% | **31** | 4 | 16.6% / 40.4% | 42,400 / 50,835 |
 
-**Known limitation (honest).** Stage 1 caps each layer at `EVIDENCE_LAYER_CAP =
-60,000` cells, so on the two large seeds stage 2 fits a deterministic subsample
-(~78% / ~59% of wall cells) and warns `stage1_layer_capped`. This is fix-loop
-material (plan `06`) if it binds a wall gate; the cap lives in the frozen stage-1
-contract, so stage 2 reports it rather than reaching around it.
+Median wall-length interval: ±1.8 cm / ±2.6 cm / ±2.4 cm. Per-segment lengths,
+support/coverage and the full before/after breakdown live in
+`docs/plans/04i-stage2-report.md` and `bench/stage2_{before,after}/`.
 
-**Tests** `tests/test_stage2_walls.py`: four-wall recovery + lengths, support-gate
-drop count, inset short-run rejection, unobserved side, no polygon/openings in the
-payload, byte-identical determinism, degenerate/empty inputs, CLI writes the
-sidecar.
+**Known limitations (honest).**
+- Stage 1 caps each layer at `EVIDENCE_LAYER_CAP = 60,000` cells, so on the two
+  large seeds stage 2 fits a deterministic subsample and warns `stage1_layer_capped`
+  (fix-loop material, plan `06`).
+- `evidence_explained` over *all* wall cells is low (15-21%) because ~58% of the
+  stage-1 wall cells are single-height-bin noise; over the support-gated `kept`
+  cells it is 36-59%, and interior/occluded walls are only partly recovered.
+
+**Tests** `tests/test_stage2_walls.py` (11): outer + inner wall recovery, no closing
+rectangle, support-gate drop count, parallel-face merge with thickness, doorway
+splitting one wall into two runs, junction extension is `inferred` + interval
+widened, full evidence on a clean room, unexplained noise, byte-identical
+determinism, degenerate input, CLI writes segments + camera markers.
+`docs/stage1_contract.md` §2/§6 cover the new `camera_start`/`camera_end` fields.
+
 

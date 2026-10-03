@@ -1,0 +1,144 @@
+{
+  "camera_inside_walls_fraction": 1.0,
+  "cells": {
+    "dropped": 16978,
+    "dropped_reasons": {
+      "support_below_min_height_bins": 16978
+    },
+    "input": 22007,
+    "kept": 5029
+  },
+  "extent_world": {
+    "x_m": [
+      -6.73,
+      2.59
+    ],
+    "z_m": [
+      -1.45,
+      5.51
+    ]
+  },
+  "floor_extent_world": {
+    "x_m": [
+      -6.75,
+      1.95
+    ],
+    "z_m": [
+      -1.45,
+      5.45
+    ]
+  },
+  "manhattan_angle_deg": 22.5,
+  "name": "wall reconstruction",
+  "params": {
+    "cam_margin_m": 0.1,
+    "cell_m": 0.02,
+    "height_bins": 10,
+    "min_height_bins": 4,
+    "min_peak_frac": 0.15,
+    "min_run_m": 1.2,
+    "peak_smooth": 5,
+    "run_gap_m": 0.1
+  },
+  "walls": [
+    {
+      "coverage": 0.2137,
+      "length_m": 5.8206,
+      "line_uv": {
+        "axis": "u",
+        "pos": -4.1257
+      },
+      "line_world": {
+        "a": [
+          -3.3895,
+          -2.598
+        ],
+        "b": [
+          -5.6169,
+          2.7795
+        ]
+      },
+      "peak_strength": 0.1857,
+      "rule": "nearest_supported_long_line_beyond_camera",
+      "run_m": 1.2,
+      "side": "u_min",
+      "state": "observed",
+      "support": 162
+    },
+    {
+      "coverage": 0.9744,
+      "length_m": 5.8206,
+      "line_uv": {
+        "axis": "u",
+        "pos": 2.3578
+      },
+      "line_world": {
+        "a": [
+          2.6004,
+          -0.1169
+        ],
+        "b": [
+          0.373,
+          5.2606
+        ]
+      },
+      "peak_strength": 1.0,
+      "rule": "nearest_supported_long_line_beyond_camera",
+      "run_m": 6.05,
+      "side": "u_max",
+      "state": "observed",
+      "support": 934
+    },
+    {
+      "coverage": 0.4615,
+      "length_m": 6.4835,
+      "line_uv": {
+        "axis": "v",
+        "pos": -1.1031
+      },
+      "line_world": {
+        "a": [
+          -3.3895,
+          -2.598
+        ],
+        "b": [
+          2.6004,
+          -0.1169
+        ]
+      },
+      "peak_strength": 0.5772,
+      "rule": "nearest_supported_long_line_beyond_camera",
+      "run_m": 1.85,
+      "side": "v_min",
+      "state": "observed",
+      "support": 339
+    },
+    {
+      "coverage": 0.2385,
+      "length_m": 6.4835,
+      "line_uv": {
+        "axis": "v",
+        "pos": 4.7174
+      },
+      "line_world": {
+        "a": [
+          -5.6169,
+          2.7795
+        ],
+        "b": [
+          0.373,
+          5.2606
+        ]
+      },
+      "peak_strength": 0.3908,
+      "rule": "nearest_supported_long_line_beyond_camera",
+      "run_m": 1.45,
+      "side": "v_max",
+      "state": "observed",
+      "support": 222
+    }
+  ],
+  "warnings": [
+    "weak wall coverage: ['u_min', 'v_min', 'v_max'] - widen intervals / flag partial"
+  ]
+}

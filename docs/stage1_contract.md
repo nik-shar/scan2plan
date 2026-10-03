@@ -27,6 +27,7 @@ belong to stage 3). Only two filters apply, and they are applied upstream in S2.
 | `params` | every threshold that was used (below) |
 | `camera_travel_m` | total camera path length (m) |
 | `camera_xz` | downsampled camera path (≤ 200 points) |
+| `camera_start` / `camera_end` | first / last camera position `[x, z]` (stage-1 addition; the SVG marks them green / red; `null` with no poses) |
 | `layers.wall_cells[]` | wall-band cells `{x, z, support}` (support = # height bins occupied) |
 | `layers.floor_cells[]` | floor-slab cells `[x, z]` |
 | `layers.camera_free_space[]` | camera-path cells (+ ray-carved if `ray_carve`), `[x, z]` |
@@ -91,15 +92,16 @@ the config but are unused until the redesign lands.
 3. **No vision model** touches the numbers; stage 1 is pure geometry.
 4. **Layers only** — no closed polygon, hull or interpolation is produced.
 
-## 6. Consumer: stage 2 — wall reconstruction
+## 6. Consumer: stage 2 — multi-segment wall extraction
 
 Stage 2 (`scan2plan.geometry.walls.reconstruct_walls`, plan 04i §8) consumes **this
-artifact only** — `layers.wall_cells` (`x`/`z`/`support`), `layers.floor_cells`,
-`camera_xz` — and emits the `stage2_walls.{json,svg}` sidecar. It never re-reads the
-raw cloud, so *this artifact + config fully determine it* (byte-reproducible). It
-applies the `min_height_bins` support gate to `wall_cells`, then fits Manhattan wall
-lines/segments; the remaining `outline` keys it uses are `cell_m`, `peak_smooth`,
-`min_peak_frac`, `cam_margin_m`, `min_run_m`, `run_gap_m`.
+artifact only** — `layers.wall_cells` (`x`/`z`/`support`), `layers.floor_cells`, and
+`camera_xz` / `camera_start` / `camera_end` — and emits the `stage2_walls.{json,svg}`
+sidecar. It never re-reads the raw cloud, so *this artifact + config fully determine
+it* (byte-reproducible). It applies the `min_height_bins` support gate, takes **every**
+histogram peak, keeps contiguous runs >= `min_run_m`, merges parallel segments within
+`merge_tol_m`, and joins L/T junctions within `join_tol_m`. It reports
+`evidence_explained` (share of wall cells within `evidence_tol_m` of a segment).
 
 Because each layer is capped here at `EVIDENCE_LAYER_CAP`, stage 2 warns
 `stage1_layer_capped` and fits the deterministic subsample when the true count
