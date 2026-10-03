@@ -244,3 +244,30 @@ Passes when, vs. the current OBB baseline (`area=38.41 m2, walls=4, openings=0`)
 - §6 real-data numbers recorded in the G-8 commit message (before/after).
 - No changes to any frozen interface (I1–I9); this doc is the only new file under `docs/plans/`.
 
+## 11. Implementation results (G-6..G-9 — shipped)
+
+Implemented as described above (`extract_footprint` in `geometry/footprint.py`;
+`extract_room` now takes the polygon path with an OBB fallback).
+
+Measured, `single_room/c00a170fe1`:
+
+| Run | floor area | walls | openings |
+|---|---|---|---|
+| OBB baseline (pre-04h) | **38.41 m²** | 4 | 0 |
+| concave footprint, `--stride 60` | 14.01 m² | 24 | 2 |
+| concave footprint, `--stride 10` | **19.21 m²** | 25 | 2 |
+
+Synthetic validation (`tests/test_geometry.py`): a clean 4×3 − notch **L of 9.0 m²**
+is recovered at **6 walls**, a punched door is detected, a closed L yields **no
+phantom opening**, and a rectangular room still reduces to **4 walls** (regression).
+
+**Interpretation / honest limitation.** The seed's *observed floor* is a ragged,
+partly diagonal region and the attached bathroom is a **separate** floor component
+(~1 m gap of unobserved floor at the doorway), so the largest-component polygon
+traces the observed main area rather than a clean L. Consequences: the area is now
+plausible (19 m² vs 38 m²) and openings are found, but the wall count is high
+(ragged observed boundary) and the bathroom is not yet merged in. The rigorous fix
+for both is (a) interior-wall detection via vertical-plane RANSAC (04c §1.3), and
+(b) denser floor coverage in capture (03) / the multi-room benchmark set (08,
+BM-1). R-Tree: this is fix-loop material for `06`.
+

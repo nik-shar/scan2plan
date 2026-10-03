@@ -67,4 +67,4 @@ Scoring note: the harness in `08` must count **false negatives and false positiv
 | Mirror/glass false planes | reject planes with low depth-confidence support |
 | Low light → sparse cloud | widen CI; flag in `recon.quality` |
 | Phantom openings | precision/recall tuning in `08`; confidence threshold |
-| Non-Manhattan rooms | config to relax orthogonality |
+| Non-Manhattan rooms | concave polygonal footprint extraction implemented (plan `04h`); OBB kept as fallback |
