@@ -5,6 +5,17 @@ Honest milestone log (plan 07 PR-4). Newest first.
 ## Unreleased
 
 ### 04i — three-stage room outline with explainable furniture removal
+- **Stage 1 redefined as pure observed evidence** (renamed from "outline"): layered
+  output, no hull/buffer/snap/interpolation — observed wall cells (with per-cell
+  height-bin support), observed floor cells, camera free-space (path, optional
+  ray-carve). Unknown stays blank; only confidence/range gates apply; thresholds
+  logged and an unfiltered layer saved. Reports statistics only
+  (`camera_inside_fraction`, evidence-vs-camera extent) and never fails.
+- **"Camera inside the room" moved to a stage-3 assertion** on the final polygon
+  (`camera_inside_fraction`, `assert_camera_inside`).
+- **Stage 3 provenance**: every wall/corner carries `observed | inferred`; missing
+  corners are inferred by extending adjacent wall lines with an interval that grows
+  with the extrapolated distance.
 - Ported `room_fit.py` wall logic into `src/scan2plan/geometry/wall_model.py`
   (numpy only; self-test reproduces 12.77 m² vs truth 12.80 m²).
 - New `src/scan2plan/geometry/room_outline.py`: stage 1 observed outline, stage 2

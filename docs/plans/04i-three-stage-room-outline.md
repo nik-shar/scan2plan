@@ -18,19 +18,29 @@ and reported with a bootstrap + odometry interval. Ported from the tested
 
 ## 2. Stages
 
-- **Stage 1 (observed):** S2 drops depth with `confidence < confidence_min` and
-  `range > max_range_m`; the observed outline of everything seen is saved as
-  `stage1_observed.json` + `stage1_observed.svg` (outline + camera path).
-  Furniture is present here.
+- **Stage 1 (observed evidence):** pure layers, no hull/buffer/snap/interpolation.
+  S2 drops depth with `confidence < confidence_min` and `range > max_range_m`;
+  stage 1 then emits `stage1_observed.json` + `stage1_observed.svg` with three
+  layers — **observed wall cells** (each with a per-cell height-bin *support*
+  count), **observed floor cells**, and **camera free-space** (path, optionally
+  ray-carved with `ray_carve`). Unknown area stays blank. It reports statistics
+  only (`camera_inside_fraction`, evidence vs camera extent) and never fails;
+  thresholds are logged in the payload and an **unfiltered** layer (gates off) is
+  saved for comparison.
 - **Stage 2 (classify):** every region labelled exactly once with the firing rule —
   `noise_or_ghost`, `low_furniture`, `tall_furniture`, `suspected_occluder`,
   `wall` — as `{label, rule, params, polygon_xz, area_m2}` in
   `stage2_classified.json` + `stage2_classified.svg` (walls black, removed dashed
   grey, occluders orange).
-- **Stage 3 (final):** rectilinear outline from the wall lines + observed steps
-  (4–8 edges). Each wall carries `state ∈ {observed, partially_occluded,
-  unobserved}`; `stage3_final.json` + `stage3_final.svg`, `plan.json` (I3-valid),
-  `plan.svg`.
+- **Stage 3 (final):** the rectilinear room, built from wall items + the observed
+  floor (stage 3 may interpolate/snap), 4–8 edges. Every element carries
+  **provenance = `observed` | `inferred`**; a corner is `observed` when an observed
+  wall cell lies within `infer_tol_m`, else `inferred` by extending adjacent wall
+  lines with an interval that grows with the extrapolated distance
+  (`inferred_ci_per_m`). A side with no fitted wall line is inferred and flagged.
+  The old "camera must be inside the room" assumption is now an explicit **stage-3
+  assertion** (`camera_inside_fraction`, `assert_camera_inside`). Outputs:
+  `stage3_final.json` + `stage3_final.svg`, `plan.json` (I3-valid), `plan.svg`.
 
 Each stage therefore has its **own SVG** for side-by-side inspection (04i).
 
@@ -55,6 +65,14 @@ Each stage therefore has its **own SVG** for side-by-side inspection (04i).
 | `weak_coverage_frac` | 0.5 | < 50% support -> widen interval |
 | `occluded_ci_scale` | 2.0 | occluded wall interval multiplier |
 | `bootstrap_n` | 200 | wall-cell resamples for the position/area CI |
+| `evidence_bin_m` | 0.10 | stage-1 floor/free-space cell size |
+| `floor_band_m` | 0.08 | floor slab thickness for the observed-floor layer |
+| `ray_carve` | false | optionally carve free-space cells along camera->point rays |
+| `free_stride` | 25 | point subsample for ray carving |
+| `save_unfiltered` | true | also emit `points_unfiltered.npz` + unfiltered evidence layer |
+| `infer_tol_m` | 0.20 | a corner within this of observed wall evidence is `observed` |
+| `inferred_ci_per_m` | 0.05 | interval growth per metre of extrapolation (inferred corners) |
+| `assert_camera_inside` | false | when true, raise if the camera path leaves the stage-3 polygon |
 
 ## 4. Intervals
 
