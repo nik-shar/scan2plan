@@ -26,6 +26,7 @@ plans can never silently disagree about the same contract.
 | `04e-damage-concealed-scope.md` | Damage, concealed rules, scope items | Part 2 (OUT-3/4/5) |
 | `04f-uncertainty-and-calibration.md` | Per-measurement CI, conformal calibration | Part 2 (OUT-6/G-CAL) |
 | `04g-output-render-cli.md` | CLI, JSON emit, SVG render | Part 2 (OUT-7/9) |
+| `04h-polygonal-room-footprint.md` | L-shaped rooms: concave footprint plan (refines `04c`, no interface change) | Part 2 (OUT-1) |
 | `05-part3-head-to-head.md` | Incumbent app comparison | Part 3 |
 | `06-part4-fix-loop.md` | Fix declaration → shipped fix | Part 4 |
 | `07-part5-process-evidence.md` | Commit cadence, history, defense | Part 5 |
