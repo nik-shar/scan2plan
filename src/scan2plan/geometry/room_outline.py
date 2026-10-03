@@ -135,11 +135,15 @@ def stage1_observed(
         world = rotate2d(fp.ring_local, -theta_rad)
         polygon = [[float(a), float(b)] for a, b in world]
         area = float(fp.area_m2)
+    # Downsampled camera path (for the stage-1 SVG). ~200 points keeps it compact.
+    step = max(1, cam_xyz.shape[0] // 200)
+    cam_ds = cam_xyz[::step][:, [0, 2]]
     return {
         "points": int(points.shape[0]),
         "camera_travel_m": round(travel, 3),
         "params": {"outline_bin_m": 0.10, "min_height_bins": params.min_height_bins},
         "polygon_xz": polygon,
+        "camera_xz": [[float(a), float(b)] for a, b in cam_ds],
         "area_m2": round(area, 3),
         "warnings": warnings,
     }

@@ -13,8 +13,9 @@ Honest milestone log (plan 07 PR-4). Newest first.
   final outline with per-wall state (`observed` / `partially_occluded` /
   `unobserved`).
 - `scan2plan run` now writes `stage1_observed.json`, `stage2_classified.json`,
-  `stage3_final.json`, `plan.svg` and the layered `stages.svg`; `plan.json` stays
-  I3-valid (rich states live in the sidecars).
+  `stage3_final.json`, plus **one SVG per stage** (`stage1_observed.svg`,
+  `stage2_classified.svg`, `stage3_final.svg`), `plan.svg` and the canonical
+  `plan.json` (I3-valid; rich states live in the sidecars).
 - Stage-1 depth gates are config-driven (`outline.confidence_min`,
   `outline.max_range_m`); all thresholds moved into the I4 `outline` block.
 - Intervals: removed the flat ±5% area and ±0.02 m door constants; wall/area CIs

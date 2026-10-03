@@ -28,7 +28,7 @@ from scan2plan.geometry import OutlineResult, RoomGeometry, build_outline
 from scan2plan.geometry.planes import horizontal_planes
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
-from scan2plan.render import render_room_svg, render_stage_svg
+from scan2plan.render import render_outline_svg, render_room_svg, render_stage_svg
 from scan2plan.stitch import run_ablation, run_stitch
 from scan2plan.util.logging import get_logger
 
@@ -210,7 +210,7 @@ def run(
     assert cir.recon is not None and cir.recon.points_ref is not None
     points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
     stage_paths: list[Path] = []
-    stage_svg: Path | None = None
+    svg_paths: list[Path] = []
     svg_path: Path | None = None
     if outline is not None:
         geom = RoomGeometry(
@@ -221,12 +221,27 @@ def run(
         )
         svg_path = render_room_svg(geom, out_dir / "plan.svg", title=cir.session.id)
         stage_paths = _write_stage_json(outline, out_dir)
-        stage_svg = render_stage_svg(
-            geom,
-            outline.stage2.get("regions", []),
-            out_dir / "stages.svg",  # type: ignore[arg-type]
-            title=f"{cir.session.id} (stage 2: walls vs removed)",
-        )
+        # One SVG per stage (plan 04i), plus the canonical plan.svg. All inspectable.
+        svg_paths = [
+            render_outline_svg(
+                outline.stage1.get("polygon_xz", []),  # type: ignore[arg-type]
+                out_dir / "stage1_observed.svg",
+                title=f"{cir.session.id} - stage 1: observed outline (before cleanup)",
+                camera_xz=outline.stage1.get("camera_xz", []),  # type: ignore[arg-type]
+                note=f"camera travel: {outline.stage1.get('camera_travel_m')} m",
+            ),
+            render_stage_svg(
+                geom,
+                outline.stage2.get("regions", []),  # type: ignore[arg-type]
+                out_dir / "stage2_classified.svg",
+                title=f"{cir.session.id} - stage 2: classified (walls vs removed)",
+            ),
+            render_room_svg(
+                geom,
+                out_dir / "stage3_final.svg",
+                title=f"{cir.session.id} - stage 3: final wall plan",
+            ),
+        ]
 
     # S4 stitch + drift correction (plan 04d); single-room captures stitch trivially.
     cir.stitch = run_stitch(cir, loop_closure=cfg.loop_closure)
@@ -277,8 +292,8 @@ def run(
         typer.echo(f"  wrote {svg_path}")
     for p in stage_paths:
         typer.echo(f"  wrote {p}")
-    if stage_svg is not None:
-        typer.echo(f"  wrote {stage_svg}")
+    for p in svg_paths:
+        typer.echo(f"  wrote {p}")
     typer.echo("  note: damage/scope stages (S5-S8) are pending (M5+).")
 
 

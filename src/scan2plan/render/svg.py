@@ -199,3 +199,76 @@ def render_stage_svg(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(parts) + "\n")
     return out_path
+
+
+def render_outline_svg(
+    polygon_xz: list[list[float]],
+    out_path: Path,
+    *,
+    title: str = "scan2plan stage 1: observed outline",
+    camera_xz: list[list[float]] | None = None,
+    note: str | None = None,
+    scale_px_per_m: float = 90.0,
+    margin: float = 90.0,
+) -> Path:
+    """Stage-1 view: the observed outline of everything seen + the camera path.
+
+    This is the "before" picture (furniture included, low-confidence depth already
+    dropped), so it can be compared against the stage-3 plan.
+    """
+    xs = [p[0] for p in polygon_xz] or [0.0]
+    zs = [p[1] for p in polygon_xz] or [0.0]
+    if camera_xz:
+        xs += [p[0] for p in camera_xz]
+        zs += [p[1] for p in camera_xz]
+    minx, maxx, minz, maxz = min(xs), max(xs), min(zs), max(zs)
+    room_w = max((maxx - minx) * scale_px_per_m, 40.0)
+    room_h = max((maxz - minz) * scale_px_per_m, 40.0)
+    legend = [f"observed area: {_area(polygon_xz):.2f} m^2"]
+    if camera_xz:
+        legend.append(f"camera path: {len(camera_xz)} points")
+    if note:
+        legend.append(note)
+    width_px = room_w + 2 * margin
+    height_px = margin + room_h + 30 + 18 * len(legend)
+
+    def px(p: list[float]) -> tuple[float, float]:
+        return (margin + (p[0] - minx) * scale_px_per_m, margin + (maxz - p[1]) * scale_px_per_m)
+
+    parts: list[str] = []
+    parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width_px:.0f}" height="{height_px:.0f}" '
+        f'viewBox="0 0 {width_px:.0f} {height_px:.0f}" font-family="monospace">'
+    )
+    parts.append('<rect width="100%" height="100%" fill="#ffffff"/>')
+    parts.append(f'<text x="{margin:.0f}" y="32" font-size="18" fill="#111">{_esc(title)}</text>')
+    if polygon_xz:
+        ring = " ".join(f"{x:.1f},{y:.1f}" for x, y in (px(p) for p in polygon_xz))
+        parts.append(f'<polygon points="{ring}" fill="#fff4e6" stroke="#d9822b" stroke-width="3"/>')
+    if camera_xz:
+        path = " ".join(f"{x:.1f},{y:.1f}" for x, y in (px(p) for p in camera_xz))
+        parts.append(f'<polyline points="{path}" fill="none" stroke="#1a73e8" stroke-width="2"/>')
+    legend.insert(0, "orange = observed outline (all seen)")
+    if camera_xz:
+        legend.insert(1, "blue = camera path")
+    for i, txt in enumerate(legend):
+        parts.append(
+            f'<text x="{margin:.0f}" y="{margin + room_h + 30 + 18 * i:.0f}" font-size="13" '
+            f'fill="#333">{_esc(txt)}</text>'
+        )
+    parts.append("</svg>")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(parts) + "\n")
+    return out_path
+
+
+def _area(polygon_xz: list[list[float]]) -> float:
+    if len(polygon_xz) < 3:
+        return 0.0
+    x = [p[0] for p in polygon_xz]
+    z = [p[1] for p in polygon_xz]
+    total = 0.0
+    for i in range(len(x)):
+        j = (i + 1) % len(x)
+        total += x[i] * z[j] - x[j] * z[i]
+    return abs(total) / 2.0

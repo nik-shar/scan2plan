@@ -20,15 +20,19 @@ and reported with a bootstrap + odometry interval. Ported from the tested
 
 - **Stage 1 (observed):** S2 drops depth with `confidence < confidence_min` and
   `range > max_range_m`; the observed outline of everything seen is saved as
-  `stage1_observed.json` (+ `camera_travel_m`). Furniture is present here.
+  `stage1_observed.json` + `stage1_observed.svg` (outline + camera path).
+  Furniture is present here.
 - **Stage 2 (classify):** every region labelled exactly once with the firing rule —
   `noise_or_ghost`, `low_furniture`, `tall_furniture`, `suspected_occluder`,
   `wall` — as `{label, rule, params, polygon_xz, area_m2}` in
-  `stage2_classified.json` and the layered `stages.svg` (walls black, removed
-  dashed grey, occluders orange).
+  `stage2_classified.json` + `stage2_classified.svg` (walls black, removed dashed
+  grey, occluders orange).
 - **Stage 3 (final):** rectilinear outline from the wall lines + observed steps
   (4–8 edges). Each wall carries `state ∈ {observed, partially_occluded,
-  unobserved}`; `stage3_final.json`, `plan.json` (I3-valid), `plan.svg`.
+  unobserved}`; `stage3_final.json` + `stage3_final.svg`, `plan.json` (I3-valid),
+  `plan.svg`.
+
+Each stage therefore has its **own SVG** for side-by-side inspection (04i).
 
 ## 3. Thresholds (all in I4 `outline`; rationale)
 
