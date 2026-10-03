@@ -123,3 +123,114 @@ def render_evidence_svg(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(parts) + "\n")
     return out_path
+
+
+def render_walls_svg(
+    stage2: dict,
+    out_path: Path,
+    *,
+    stage1: dict | None = None,
+    title: str = "scan2plan stage 2: wall reconstruction",
+    px_per_m: float = 90.0,
+    margin: float = 80.0,
+) -> Path:
+    """Stage-2 wall reconstruction: kept/dropped cells + the fitted wall lines.
+
+    Wall cells are shaded by height-bin support (dark = kept, faded = dropped by
+    the support gate); the four reconstructed wall segments are drawn as bold red
+    lines. Rendered as an embedded PNG so thousands of cells stay compact.
+    """
+    walls = stage2.get("walls", [])
+    params = stage2.get("params", {})
+    min_bins = int(params.get("min_height_bins", 4))
+    cells = []
+    if isinstance(stage1, dict):
+        cells = stage1.get("layers", {}).get("wall_cells", []) or []
+
+    coords: list[tuple[float, float]] = [(float(c["x"]), float(c["z"])) for c in cells]
+    for w in walls:
+        line = w.get("line_world")
+        if line:
+            coords.append((float(line["a"][0]), float(line["a"][1])))
+            coords.append((float(line["b"][0]), float(line["b"][1])))
+
+    if not coords:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120">'
+            '<rect width="100%" height="100%" fill="#fff"/>'
+            f'<text x="20" y="40" font-size="16">{_esc(title)}</text>'
+            '<text x="20" y="70" font-size="13">no wall cells</text></svg>\n'
+        )
+        return out_path
+
+    xs = [c[0] for c in coords]
+    zs = [c[1] for c in coords]
+    pad = 0.5
+    bx0, bz1 = min(xs) - pad, max(zs) + pad
+    w_px = max(40, int(((max(xs) - min(xs)) + 2 * pad) * px_per_m))
+    h_px = max(40, int(((max(zs) - min(zs)) + 2 * pad) * px_per_m))
+    img = Image.new("RGB", (w_px, h_px), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    def pix(x: float, z: float) -> tuple[float, float]:
+        return ((x - bx0) * px_per_m, (bz1 - z) * px_per_m)
+
+    def sq(x: float, z: float, size_px: float, fill: tuple[int, int, int]) -> None:
+        cx, cy = pix(x, z)
+        h = size_px / 2
+        draw.rectangle([cx - h, cy - h, cx + h, cy + h], fill=fill)
+
+    cell_px = max(1.0, float(params.get("cell_m", 0.02)) * px_per_m)
+    for c in cells:
+        support = int(c.get("support", 1))
+        if support >= min_bins:
+            shade = max(70, 200 - 14 * support)
+        else:
+            shade = 225
+        sq(float(c["x"]), float(c["z"]), cell_px, (shade, shade, shade))
+    for w in walls:
+        line = w.get("line_world")
+        if line:
+            draw.line(
+                [
+                    pix(float(line["a"][0]), float(line["a"][1])),
+                    pix(float(line["b"][0]), float(line["b"][1])),
+                ],
+                fill=(200, 30, 30),
+                width=3,
+            )
+
+    observed = sum(1 for w in walls if w.get("state") == "observed")
+    counts = stage2.get("cells", {})
+    legend = [
+        f"walls observed: {observed}/{len(walls)}",
+        f"cells kept/dropped: {counts.get('kept')}/{counts.get('dropped')} (support >= {min_bins})",
+        f"manhattan angle {stage2.get('manhattan_angle_deg')} deg | "
+        f"min run {params.get('min_run_m')} m",
+        f"camera inside walls: {stage2.get('camera_inside_walls_fraction')}",
+    ]
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    out_w = w_px + 2 * margin
+    out_h = h_px + margin + 30 + 18 * len(legend)
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{out_w:.0f}" height="{out_h:.0f}" '
+        f'viewBox="0 0 {out_w:.0f} {out_h:.0f}" font-family="monospace">',
+        '<rect width="100%" height="100%" fill="#ffffff"/>',
+        f'<text x="{margin:.0f}" y="30" font-size="17" fill="#111">{_esc(title)}</text>',
+        f'<image x="{margin:.0f}" y="{margin:.0f}" width="{w_px}" height="{h_px}" '
+        f'href="data:image/png;base64,{b64}"/>',
+    ]
+    for i, txt in enumerate(legend):
+        parts.append(
+            f'<text x="{margin:.0f}" y="{margin + h_px + 30 + 18 * i:.0f}" font-size="13" '
+            f'fill="#333">{_esc(txt)}</text>'
+        )
+    parts.append("</svg>")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(parts) + "\n")
+    return out_path
