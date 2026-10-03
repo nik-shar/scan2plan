@@ -76,6 +76,8 @@
         "perp_tol_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.1 },
         "ci_base_m": { "type": "number", "minimum": 0, "default": 0.03 },
         "ci_per_m": { "type": "number", "minimum": 0, "default": 0.15 },
+        "node_tol_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.05 },
+        "node_merge_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.1 },
         "furniture_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
         "occluder_inset_m": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" }, "default": [0.3, 0.7] },
         "evidence_bin_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.1 },

@@ -21,6 +21,14 @@ from scan2plan.geometry.wall_complete import (
     complete_walls,
     completion_params_from_config,
 )
+from scan2plan.geometry.wall_graph import (
+    GraphEdge,
+    GraphNode,
+    GraphParams,
+    WallGraph,
+    build_wall_graph,
+    graph_params_from_config,
+)
 from scan2plan.geometry.walls import (
     AXES,
     Segment,
@@ -38,11 +46,17 @@ __all__ = [
     "WallParams",
     "CompletionParams",
     "CompletionResult",
+    "GraphEdge",
+    "GraphNode",
+    "GraphParams",
+    "WallGraph",
     "WallPiece",
+    "build_wall_graph",
     "camera_travel_m",
     "complete_walls",
     "completion_params_from_config",
     "explained_mask",
+    "graph_params_from_config",
     "horizontal_planes",
     "observed_evidence",
     "reconstruct_walls",

@@ -62,6 +62,9 @@ class Outline(BaseModel):
     perp_tol_m: float = Field(default=0.10, gt=0.0)
     ci_base_m: float = Field(default=0.03, ge=0.0)
     ci_per_m: float = Field(default=0.15, ge=0.0)
+    # Wall graph (stage 2): nodes + edges after completion.
+    node_tol_m: float = Field(default=0.05, gt=0.0)
+    node_merge_m: float = Field(default=0.10, gt=0.0)
     # Classification thresholds (stage 2).
     furniture_max_m: float = Field(default=1.0, gt=0.0)
     occluder_inset_m: tuple[float, float] = (0.3, 0.7)
