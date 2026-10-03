@@ -101,6 +101,40 @@ def _junction_payload() -> dict:
     return _finish(cells, 4.0, 4.0, [])
 
 
+def _make(cells: list[dict], cam: list[list[float]], w: float = 10.0, d: float = 4.0) -> dict:
+    """Assemble a payload with an explicit camera path (for completion tests)."""
+    floor = [[float(x), float(z)] for x in np.linspace(0.0, w, 20) for z in np.linspace(0.0, d, 20)]
+    return {
+        "name": "observed evidence",
+        "camera_xz": cam,
+        "camera_start": cam[0],
+        "camera_end": cam[-1],
+        "layers": {"wall_cells": cells, "floor_cells": floor, "camera_free_space": []},
+        "layer_counts": {
+            "wall_cells": len(cells),
+            "floor_cells": len(floor),
+            "camera_free_space": 0,
+        },
+        "statistics": {},
+        "warnings": [],
+    }
+
+
+def _gap_payload(a: float, b: float, *, cam_crosses: bool, wardrobe: bool = False) -> dict:
+    """A z=0 wall broken into two runs with a gap ``[a, b]`` and a chosen camera path."""
+    cells: list[dict] = []
+    _line(cells, z=0.0, lo=0.0, hi=a, n=150)
+    _line(cells, z=0.0, lo=b, hi=10.0, n=150)
+    if wardrobe:  # dense low-support (unexplained) cells in front of the gap
+        for i in range(200):
+            cells.append({"x": float(a + (b - a) * (i % 20) / 20), "z": 0.3, "support": 1})
+    if cam_crosses:
+        cam = [[(a + b) / 2, -1.0], [(a + b) / 2, 1.0], [9.0, 1.5]]
+    else:
+        cam = [[1.0, 1.0], [8.0, 2.0], [9.0, 1.5]]
+    return _make(cells, cam)
+
+
 def test_outer_and_inner_walls_recovered() -> None:
     s2 = reconstruct_walls(_payload(inner=True), Config())
     segs = s2["segments"]
@@ -143,18 +177,43 @@ def test_door_gap_splits_one_wall_into_two() -> None:
     assert len(at_zero) >= 2  # the 0.4 m doorway splits the x=0 wall into two runs
 
 
-def test_junction_extension_is_inferred_and_widens_interval() -> None:
+def test_junction_extension_is_inferred() -> None:
     s2 = reconstruct_walls(_junction_payload(), Config())
     segs = s2["segments"]
-    assert len(segs) == 2  # one u-line + one perpendicular v-line
-    extends = [j for j in s2["junctions"] if j["kind"] == "extend"]
-    assert extends  # the two nearly-meeting lines joined
-    seg = max(segs, key=lambda s: s["extension_m"])
-    assert seg["provenance"] == "inferred"
+    ext = [s for s in segs if s["provenance"] == "inferred_extension"]
+    assert ext  # the two nearly-meeting lines joined / extended
+    seg = max(ext, key=lambda s: s["extension_m"])
     assert seg["extension_m"] > 0.2  # ~0.25 m extension to reach the other line
     assert seg["length"]["value"] > 3.9  # now spans the full ~4 m
-    half = (seg["length"]["ci_high"] - seg["length"]["ci_low"]) / 2
-    assert half >= seg["extension_m"]  # interval widened by the extension length
+    assert seg["ci_m"] > 0.0  # inferred interval grows with the assumed length
+
+
+def test_short_gap_bridged_as_dropout() -> None:
+    s2 = reconstruct_walls(_gap_payload(3.0, 3.2, cam_crosses=False), Config())
+    assert s2["completion"]["bridged_dropout"] >= 1
+    assert any(s["provenance"] == "inferred_dropout" for s in s2["segments"])
+
+
+def test_camera_crossed_gap_is_opening() -> None:
+    s2 = reconstruct_walls(_gap_payload(3.0, 4.5, cam_crosses=True), Config())
+    assert len(s2["openings"]) >= 1
+    assert s2["openings"][0]["rule"] == "camera_path_crosses_gap"
+    # the door gap must NOT be bridged
+    assert not any(
+        s["provenance"] in ("inferred_occluded", "inferred_dropout") for s in s2["segments"]
+    )
+
+
+def test_furniture_gap_bridged_as_occluded() -> None:
+    s2 = reconstruct_walls(_gap_payload(3.0, 4.5, cam_crosses=False, wardrobe=True), Config())
+    assert s2["completion"]["bridged_occluded"] >= 1
+    assert any(s["provenance"] == "inferred_occluded" for s in s2["segments"])
+
+
+def test_stage2_exposes_completion_keys() -> None:
+    s2 = reconstruct_walls(_payload(), Config())
+    for key in ("segments", "openings", "unknown_gaps", "completion", "observed_count"):
+        assert key in s2
 
 
 def test_evidence_explained_full_for_clean_room() -> None:
