@@ -119,6 +119,18 @@ The per-invariant values are recorded in `stage3_rooms.json` under `invariants`
    each room's `ceiling`. Across-room spread > `ceiling_spread_max_m` flags
    `inconsistent_ceiling`.
 
+4. **Coverage.** `build_regions` now carves the full stage-1 camera free-space layer
+   out of the wall barrier (a wall cannot cover walked space) and counts it as
+   visited, so a region the camera walked through becomes a room; a region with a
+   camera is never `discarded` (the min-room rule merges it instead). Each room
+   polygon is made a **superset of its region** (union of the snapped polygon with the
+   exact region boundary, else the raw boundary, else the exact raster outline), so
+   the walked cells lie inside the emitted polygons. Edges with no matched wall are
+   tagged `inferred_closure` (wide interval) instead of `prior`. Two supporting bug
+   fixes: `region_inradius` now pads its EDT mask (it over-estimated badly, e.g. a
+   1 m square read 1.40 m), and `split_regions` is depth-first and never drops a
+   region when its guard trips.
+
 ## Known limitations (honest; rule 7)
 
 - The footprints are ragged: stage-1 floor evidence is sparse (10 cm cells, and the

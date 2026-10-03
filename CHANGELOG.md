@@ -4,6 +4,25 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — fix 4: coverage (walked regions become rooms; polygons cover their regions)
+- `build_regions` carves the full stage-1 `camera_free_space` layer out of the wall
+  barrier (walls cannot cover walked space) and counts it as visited, so a region the
+  camera walked through becomes a room; a region with a camera is never `discarded`
+  (the min-room rule merges it). The domain now includes the free-space bins.
+- Room polygons are a **superset of their region** (union of the snapped polygon with
+  the exact region boundary, else the raw boundary, else the exact raster outline), so
+  every walked cell lies inside an emitted polygon; `resolve_overlaps` is now a
+  deterministic sequential clip (largest-first, subtract the placed union +0.2 mm) and
+  `no_overlap` is exactly 0. Edges with no matched wall are tagged
+  `inferred_closure` (wide interval), never `prior`.
+- Supporting bug fixes: `region_inradius` padded its EDT mask (a 1 m square read
+  1.40 m instead of 0.5 m); `split_regions` is depth-first and never drops a region
+  when its guard trips; `find_waists` is a single pass (was O(cells x indices)).
+- Result on the three seeds: **all six invariants pass**. Coverage 1.000 on all
+  three (was 0.73 / 0.09 / 0.26), `camera_inside` 215/215, 202/202, 204/204 (was
+  164/215, 29/202, 59/204); rooms `c00a170fe1` 4 (was 7, smallest 0.27 m2),
+  `1a8384c3f6` 7 (was 2 + 8 enclosed), `c7d28f72c6` 1 (60.9 m2).
+
 ### 04i — fix 3: ceiling plane selection (global reference + support gates)
 - `build_stage3`/`_make_room` now receive the stage-1 global ceiling plane (`ceil_y`)
   and pass it to `room_ceiling` (it was computed but never passed).

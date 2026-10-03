@@ -515,16 +515,26 @@ def build_regions(
     domain: NDArray[np.bool_],
     cam_uv: NDArray[np.float64],
     p: RoomParams,
+    free_uv: NDArray[np.float64] | None = None,
 ) -> list[Region]:
-    """Flood-fill the free space inside ``domain`` bounded by ``closed`` walls."""
+    """Flood-fill the free space inside ``domain`` bounded by ``closed`` walls.
+
+    ``free_uv`` is the full stage-1 camera free-space layer (the camera walked it):
+    those cells are carved out of the wall barrier (a wall cannot cover walked space)
+    and count as visited, so a region the camera walked through becomes a room even
+    when the downsampled path has no sample inside it (fix 4).
+    """
     barrier = _raster_walls(grid, closed)
+    visited_mask = np.zeros((grid.nx, grid.nz), dtype=bool)
+    _mark_cells(visited_mask, grid, cam_uv)
+    if free_uv is not None and free_uv.size:
+        # Fill each 10 cm free-space bin whole (as the domain does), so carving opens a
+        # continuous corridor rather than isolated 2 cm holes.
+        _fill_bins(visited_mask, grid, free_uv, p.evidence_bin_m)
+    barrier &= ~visited_mask  # a wall cannot cover space the camera walked through
+    visited = {(int(a), int(b)) for a, b in np.argwhere(visited_mask)}
     free = domain & ~barrier
     labels, n = ndimage.label(free, structure=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]))
-    cam_cells: set[tuple[int, int]] = set()
-    if cam_uv.size:
-        ci, cj = grid.ij_array(cam_uv[:, 0], cam_uv[:, 1])
-        ok = (ci >= 0) & (ci < grid.nx) & (cj >= 0) & (cj < grid.nz)
-        cam_cells = {(int(a), int(b)) for a, b in zip(ci[ok], cj[ok], strict=True)}
     regions: list[Region] = []
     cell_area = grid.cell * grid.cell
     for lab in range(1, n + 1):
@@ -533,10 +543,12 @@ def build_regions(
         if not cells:
             continue
         area = len(cells) * cell_area
-        has_cam = bool(cells & cam_cells)
-        if area < p.room_min_area_m2:
+        has_cam = bool(cells & visited)
+        if area < p.room_min_area_m2 and not has_cam:
             status = "discarded"
         else:
+            # A visited region is a room even when small: the min-room rule then merges
+            # it into a neighbour, so the walked cells stay covered by a polygon (fix 4).
             status = "room" if has_cam else "unobserved_enclosed"
         regions.append(Region(id="", cells=cells, has_camera=has_cam, status=status))
     regions.sort(key=lambda r: (-len(r.cells), min(r.cells)))
@@ -549,14 +561,22 @@ def _span_width(cells: set[tuple[int, int]], k: int, index: int) -> int:
 
 
 def find_waists(region: Region, grid: Grid, p: RoomParams) -> list[WaistSplit]:
-    """Doorway-shaped narrowings (width in [waist_min, waist_max], a local minimum)."""
+    """Doorway-shaped narrowings (width in [waist_min, waist_max], a local minimum).
+
+    Span widths and per-index coordinates are built in a single pass over the region
+    cells, so the pass stays linear on the (large) carved regions from fix 4.
+    """
     cells = region.cells
     out: list[WaistSplit] = []
     window = max(5, int(round(0.30 / grid.cell)))
     for axis in (0, 1):
         k = axis
-        idxs = sorted({c[k] for c in cells})
-        span = {i: _span_width(cells, k, i) for i in range(idxs[0], idxs[-1] + 1)}
+        span: dict[int, int] = {}
+        by_index: dict[int, list[int]] = {}
+        for c in cells:
+            span[c[k]] = span.get(c[k], 0) + 1
+            by_index.setdefault(c[k], []).append(c[1 - k])
+        idxs = sorted(span)
         for i in range(idxs[0] + 1, idxs[-1]):
             left, right, here = span.get(i - 1, 0), span.get(i + 1, 0), span.get(i, 0)
             if not (left and right and here and here < left and here < right):
@@ -568,7 +588,7 @@ def find_waists(region: Region, grid: Grid, p: RoomParams) -> list[WaistSplit]:
             neigh = [span.get(x, 0) for x in range(lo, hi + 1)]
             if here > min(neigh) or max(neigh) * grid.cell < p.waist_max_m:
                 continue  # not a strong, isolated pinch that opens to a real room
-            coords = sorted(c[1 - k] for c in cells if c[k] == i)
+            coords = sorted(by_index[i])
             along0 = grid.uv(i, coords[0])[1 - k] if axis == 0 else grid.uv(coords[0], i)[0]
             along1 = grid.uv(i, coords[-1])[1 - k] if axis == 0 else grid.uv(coords[-1], i)[0]
             off = grid.uv(i, 0)[0] if axis == 0 else grid.uv(0, i)[1]
@@ -585,9 +605,9 @@ def split_regions(
     work = list(regions)
     out: list[Region] = []
     guard = 0
-    while work and guard < 200:
+    while work and guard < 500:
         guard += 1
-        reg = work.pop(0)
+        reg = work.pop()  # depth-first: split a big region fully before the small ones
         waists = find_waists(reg, grid, p) if reg.status == "room" else []
         if not waists:
             out.append(reg)
@@ -606,6 +626,7 @@ def split_regions(
         # A waist is a doorway (passable), not a wall: both halves inherit "visited".
         for side in (left, right):
             work.append(Region(id="", cells=side, has_camera=reg.has_camera, status=reg.status))
+    out.extend(work)  # never drop a region when the guard trips (results-out policy)
     out.sort(key=lambda r: (-len(r.cells), min(r.cells)))
     return out, splits
 
@@ -789,9 +810,13 @@ def _match_wall(
 
 
 def _provenance_of(wall: WallPiece | None) -> str:
-    """Room-edge provenance from the matched wall (rule 3)."""
+    """Room-edge provenance from the matched wall (rule 3).
+
+    An edge with no matched wall closes the room at the observed floor boundary, so it
+    is tagged ``inferred_closure`` (wide interval), never silently ``prior`` (fix 4).
+    """
     if wall is None:
-        return PRIOR
+        return INFERRED_CLOSURE
     return _WALL_PROV.get(wall.provenance, INFERRED_CLOSURE)
 
 
@@ -832,13 +857,19 @@ def room_edges(
 
 
 def snap_offsets(
-    edges: list[RoomEdge], walls: list[WallPiece], merge_tol_m: float, min_step_m: float
+    edges: list[RoomEdge],
+    walls: list[WallPiece],
+    merge_tol_m: float,
+    min_step_m: float,
+    centre: tuple[float, float] = (0.0, 0.0),
 ) -> list[RoomEdge]:
     """Snap each edge's offset to a matched wall, else to the ``min_step_m`` grid.
 
     Snapping floor-derived edges onto the ``min_step_m`` grid collapses the near-equal
     staircase steps of a ragged region boundary, so the polygon has few corners while
-    every wall edge keeps its exact observed/inferred position.
+    every wall edge keeps its exact observed/inferred position. An edge with no wall
+    is snapped **outward** (away from ``centre``) so the polygon still covers its
+    region (the open side is closed at the observed floor boundary, fix 4).
     """
     out: list[RoomEdge] = []
     for e in edges:
@@ -865,8 +896,16 @@ def simplify_polygon(
     """
     uv = [grid.uv(i, j) for i, j in corners]
     edges = _edges_from_uv(uv, walls)
+    centre = (
+        (
+            sum(c[0] for c in uv) / len(uv),
+            sum(c[1] for c in uv) / len(uv),
+        )
+        if uv
+        else (0.0, 0.0)
+    )
     for _ in range(4):
-        edges = _collapse_parallel(snap_offsets(edges, walls, merge_tol_m, min_step_m))
+        edges = _collapse_parallel(snap_offsets(edges, walls, merge_tol_m, min_step_m, centre))
         uv2 = _dedupe_loop(_corners_from_offsets(edges, [e.offset for e in edges]))
         if len(uv2) < 4 or len(uv2) == len(uv):
             final = _edges_from_uv(uv2, walls)
@@ -1357,12 +1396,14 @@ def _domain_mask(
     floor_uv: NDArray[np.float64],
     cam_uv: NDArray[np.float64],
     bin_m: float,
+    free_uv: NDArray[np.float64] | None = None,
 ) -> NDArray[np.bool_]:
     """The observed-footprint domain: wall lines + floor/camera evidence bins, filled.
 
     Stage-1 floor/camera cells are ``bin_m`` apart, so each is filled as its whole bin;
     a light closing then a hole fill makes the footprint solid, so a flood fill separates
-    rooms only at the walls (not at the gaps between evidence cells).
+    rooms only at the walls (not at the gaps between evidence cells). ``free_uv`` (the
+    full camera free-space layer) is included so walked space is always in the domain.
     """
     wall_mask = np.zeros((grid.nx, grid.nz), dtype=bool)
     floor_mask = np.zeros((grid.nx, grid.nz), dtype=bool)
@@ -1370,6 +1411,8 @@ def _domain_mask(
     _mark_cells(wall_mask, grid, wall_uv)
     _fill_bins(floor_mask, grid, floor_uv, bin_m)
     _fill_bins(cam_mask, grid, cam_uv, bin_m)
+    if free_uv is not None:
+        _fill_bins(cam_mask, grid, free_uv, bin_m)
     union = wall_mask | floor_mask | cam_mask
     closed = ndimage.binary_closing(union, iterations=1)
     return ndimage.binary_fill_holes(closed) | wall_mask
@@ -1393,6 +1436,45 @@ def _make_room(
     edges, polygon_uv = simplify_polygon(corners, grid, closed, p.node_merge_m, p.min_step_m)
     if len(edges) < 4 or len(polygon_uv) < 4:
         return None
+    # Fix 4: the polygon must COVER its region (regions are disjoint, so the union also
+    # keeps room polygons disjoint). Union the snapped approximation with the exact raw
+    # region boundary; if that is not a single polygon covering the region, keep the raw
+    # observed boundary - coverage beats regularisation.
+    raw_uv = [grid.uv(i, j) for i, j in corners]
+    raw_poly = Polygon(raw_uv)
+    if raw_poly.is_valid and not raw_poly.is_empty:
+        snapped = Polygon(polygon_uv)
+        merged = snapped.union(raw_poly) if snapped.is_valid else raw_poly
+        if merged.geom_type == "Polygon" and merged.covers(raw_poly):
+            union_corners = _ring_to_corners(merged)
+            union_edges = (
+                _collapse_parallel(_edges_from_uv(union_corners, closed))
+                if len(union_corners) >= 4
+                else []
+            )
+            if len(union_edges) >= 4:
+                polygon_uv, edges = union_corners, union_edges
+        else:
+            raw_edges = _collapse_parallel(_edges_from_uv(raw_uv, closed))
+            if len(raw_edges) >= 4:
+                polygon_uv, edges = raw_uv, raw_edges
+    # Last resort (fix 4): if the polygon still fails the room gate, use the exact
+    # region raster outline (union of its unit cells) so the polygon covers every
+    # region cell - coverage beats regularisation.
+    if polygon_area(polygon_uv) < p.min_room_area_m2 or (
+        polygon_inradius(polygon_uv) < p.min_room_inradius_m
+    ):
+        boxes = [shapely.box(*grid.uv(i, j), *grid.uv(i + 1, j + 1)) for i, j in sorted(reg.cells)]
+        exact = shapely.union_all(boxes) if boxes else None
+        if exact is not None and not exact.is_empty:
+            exact_corners = _ring_to_corners(exact)
+            exact_edges = (
+                _collapse_parallel(_edges_from_uv(exact_corners, closed))
+                if len(exact_corners) >= 4
+                else []
+            )
+            if len(exact_edges) >= 4:
+                polygon_uv, edges = exact_corners, exact_edges
     area = polygon_area(polygon_uv)
     area_ci, len_ci = monte_carlo_room(edges, p)
     wl = wall_lengths(edges, len_ci, nodes_uv, p)
@@ -1465,65 +1547,67 @@ def resolve_overlaps(
     grid: Grid,
     p: RoomParams,
 ) -> tuple[list[Room], list[dict[str, object]]]:
-    """Make room polygons simple and disjoint (fix 1).
+    """Make room polygons simple and pairwise disjoint (fix 1).
 
-    Each overlapping pair is resolved once, deterministically: the intersection is
-    assigned to the room whose region owns more of it (ties -> the larger room) and
-    subtracted from the other, whose polygon/edges/area are then re-derived. A
-    second pass catches overlaps reintroduced by the first. Polygons that are not
-    simple are repaired by ``buffer(0)`` first, so ``no_overlap`` can pass.
+    Deterministic sequential clip: rooms are visited largest-first and each one has
+    the union of the already-placed polygons subtracted, then its edges/area/CI are
+    re-derived. Because every later room is clipped against all earlier ones, the
+    result is pairwise disjoint by construction (a single pass, no sliver iteration).
+    Polygons that are not simple are repaired by ``buffer(0)`` first.
     """
     report: list[dict[str, object]] = []
-    tol = p.overlap_tol_m2
     for i, r in enumerate(rooms):
         poly = Polygon(r.polygon_uv)
         if not poly.is_valid:
             corners = _ring_to_corners(poly.buffer(0))
             if len(corners) >= 4:
                 rooms[i] = _rebuild_room(r, corners, closed, nodes_uv, p)
-    for _ in range(2):
-        changed = False
-        n = len(rooms)
-        for i in range(n):
-            for j in range(i + 1, n):
-                a, b = Polygon(rooms[i].polygon_uv), Polygon(rooms[j].polygon_uv)
-                if not a.is_valid or not b.is_valid:
-                    continue
-                inter = a.intersection(b)
-                if inter.is_empty or float(inter.area) <= tol:
-                    continue
-                ci = _cells_in(inter, rooms[i].region_cells, grid)
-                cj = _cells_in(inter, rooms[j].region_cells, grid)
-                loser = j if (ci, rooms[i].area_m2) >= (cj, rooms[j].area_m2) else i
-                winner = i if loser == j else j
-                keep = a if loser == i else b
-                corners = _ring_to_corners(keep.difference(inter))
-                if len(corners) < 4:
-                    continue
-                rooms[loser] = _rebuild_room(rooms[loser], corners, closed, nodes_uv, p)
-                report.append(
-                    {
-                        "rooms": [rooms[winner].id, rooms[loser].id],
-                        "overlap_m2": round(float(inter.area), 6),
-                        "assigned_to": rooms[winner].id,
-                    }
-                )
-                changed = True
-        if not changed:
-            break
+    order = sorted(
+        range(len(rooms)),
+        key=lambda k: (
+            -rooms[k].area_m2,
+            min(rooms[k].polygon_uv) if rooms[k].polygon_uv else (0, 0),
+        ),
+    )
+    placed: shapely.Geometry | None = None
+    for k in order:
+        poly = Polygon(rooms[k].polygon_uv)
+        if placed is not None and not poly.is_empty:
+            # Subtract a hair more than the exact union so the rebuilt rectilinear
+            # polygon cannot re-introduce a sub-mm sliver overlap (no_overlap == 0).
+            cut = placed.buffer(2e-4)
+            overlap = float(poly.intersection(cut).area)
+            if overlap > 1e-9:
+                corners = _ring_to_corners(poly.difference(cut))
+                if len(corners) >= 4:
+                    rooms[k] = _rebuild_room(rooms[k], corners, closed, nodes_uv, p)
+                    poly = Polygon(rooms[k].polygon_uv)
+                    report.append(
+                        {
+                            "room": rooms[k].id,
+                            "overlap_m2": round(overlap, 6),
+                            "action": "clipped_against_placed",
+                        }
+                    )
+        placed = poly if placed is None else shapely.union_all([placed, poly])
     return rooms, report
 
 
 def region_inradius(cells: set[tuple[int, int]], grid: Grid) -> float:
-    """Max inscribed-circle radius (m) of a region (distance transform on its bbox)."""
+    """Max inscribed-circle radius (m) of a region (distance transform on its bbox).
+
+    The mask is padded with one False cell on every side: scipy's EDT needs a
+    background, otherwise a region touching its bbox edge (always) reports the
+    distance to the array corner instead of to the nearest boundary.
+    """
     if not cells:
         return 0.0
     ii = [c[0] for c in cells]
     jj = [c[1] for c in cells]
     i0, i1, j0, j1 = min(ii), max(ii), min(jj), max(jj)
-    mask = np.zeros((i1 - i0 + 1, j1 - j0 + 1), dtype=bool)
+    mask = np.zeros((i1 - i0 + 3, j1 - j0 + 3), dtype=bool)
     for i, j in cells:
-        mask[i - i0, j - j0] = True
+        mask[i - i0 + 1, j - j0 + 1] = True
     return float(ndimage.distance_transform_edt(mask).max()) * grid.cell
 
 
@@ -1535,7 +1619,7 @@ def _boundary_contacts(regions: list[Region]) -> dict[tuple[int, int], int]:
             by_cell[c] = k
     contacts: dict[tuple[int, int], int] = {}
     for (i, j), k in by_cell.items():
-        for gap in (1, 2, 3):
+        for gap in range(1, 9):  # up to ~16 cm of barrier between two regions
             for di, dj in ((gap, 0), (-gap, 0), (0, gap), (0, -gap)):
                 k2 = by_cell.get((i + di, j + dj))
                 if k2 is not None and k2 != k:
@@ -1575,7 +1659,9 @@ def apply_min_room_rule(
 
     def _fails(k: int) -> bool:
         # Area is O(1); the (distance-transform) inradius is computed only when needed.
-        return area[k] < p.min_room_area_m2 or _inrad(k) < p.min_room_inradius_m
+        # A 1 mm tolerance avoids re-classifying a region whose inradius sits on
+        # the gate (EDT vs shapely buffer disagree at the boundary).
+        return area[k] < p.min_room_area_m2 or _inrad(k) < p.min_room_inradius_m - 5e-3
 
     for _ in range(n + 1):
         failing = [
@@ -1689,13 +1775,15 @@ def build_stage3(
     wall_uv = rotate_uv(all_xz, theta)
     floor_uv = rotate_uv(floor_xz, theta)
     cam_uv = rotate_uv(cam_xz, theta)
+    free_xz = _cells_xz(stage1, "camera_free_space", False)
+    free_uv = rotate_uv(free_xz, theta)
     pts_for_grid = np.vstack([wall_uv, floor_uv]) if (wall_uv.size or floor_uv.size) else wall_uv
     grid = build_grid(pts_for_grid, p.grid_m)
-    domain = _domain_mask(grid, wall_uv, floor_uv, cam_uv, p.evidence_bin_m)
+    domain = _domain_mask(grid, wall_uv, floor_uv, cam_uv, p.evidence_bin_m, free_uv)
 
     closed, closures, score = close_walls(walls, wall_uv, floor_uv, cam_uv, grid, p)
     cam_cells = _cam_cell_set(cam_uv, grid)
-    raw_regions = build_regions(closed, grid, domain, cam_uv, p)
+    raw_regions = build_regions(closed, grid, domain, cam_uv, p, free_uv)
     regions, waists = split_regions(raw_regions, grid, cam_cells, p)
     regions, min_room_merges = apply_min_room_rule(regions, grid, p)
 
@@ -1739,7 +1827,7 @@ def build_stage3(
             continue
         if (
             room.area_m2 < p.min_room_area_m2
-            or polygon_inradius(room.polygon_uv) < p.min_room_inradius_m
+            or polygon_inradius(room.polygon_uv) < p.min_room_inradius_m - 5e-3
         ):
             fragments.append(
                 {

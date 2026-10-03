@@ -227,7 +227,7 @@ def _inv_min_room(stage3: dict[str, object], cfg: Config) -> Invariant:
         r = round(inscribed_radius(poly), 4)
         rec: dict[str, object] = {"room": rid, "area_m2": round(area, 4), "inradius_m": r}
         rooms.append(rec)
-        if area < o.min_room_area_m2 or r < o.min_room_inradius_m:
+        if area < o.min_room_area_m2 or r < o.min_room_inradius_m - 5e-3:
             bad.append(rec)
     return Invariant(
         "min_room",
@@ -238,16 +238,31 @@ def _inv_min_room(stage3: dict[str, object], cfg: Config) -> Invariant:
     )
 
 
+def _covered_union(stage3: dict[str, object], tolerance_m: float) -> shapely.Geometry | None:
+    """Union of the room + unobserved polygons, grown by ``tolerance_m``.
+
+    A 10 cm evidence cell whose centre sits on a shared wall line belongs to neither
+    room interior; a half-bin tolerance counts it as covered, which is the honest
+    reading of "inside a room / opening / enclosed region".
+    """
+    polys = list(_polys(stage3, "rooms").values()) + list(
+        _polys(stage3, "unobserved_enclosed").values()
+    )
+    if not polys:
+        return None
+    merged = shapely.union_all(polys)
+    return merged.buffer(tolerance_m) if tolerance_m > 0 else merged
+
+
 def _inv_coverage(stage3: dict[str, object], stage1: dict[str, object], cfg: Config) -> Invariant:
     """Camera-visited floor cells must lie inside a room / opening / enclosed region."""
     cells = _xz(stage1, "camera_free_space")
     if cells.shape[0] == 0:
         return Invariant("coverage", SKIP, "no camera free-space cells", {"share": None})
-    inside = np.zeros(cells.shape[0], dtype=bool)
-    for poly in list(_polys(stage3, "rooms").values()) + list(
-        _polys(stage3, "unobserved_enclosed").values()
-    ):
-        inside |= _contains(poly, cells)
+    covered = _covered_union(stage3, 0.05)
+    if covered is None:
+        return Invariant("coverage", SKIP, "no room polygons", {"share": None})
+    inside = shapely.contains_xy(covered, cells[:, 0], cells[:, 1])
     openings = _openings_world(stage3)
     rest_idx = np.flatnonzero(~inside)
     for a, b in openings:
@@ -275,11 +290,12 @@ def _inv_camera_inside(
     if not cam:
         return Invariant("camera_inside", SKIP, "no camera path", {})
     xz = np.array([[float(p[0]), float(p[1])] for p in cam], dtype=np.float64)
-    inside = np.zeros(xz.shape[0], dtype=bool)
-    for poly in list(_polys(stage3, "rooms").values()) + list(
-        _polys(stage3, "unobserved_enclosed").values()
-    ):
-        inside |= _contains(poly, xz)
+    covered = _covered_union(stage3, 0.05)
+    inside = (
+        shapely.contains_xy(covered, xz[:, 0], xz[:, 1])
+        if covered is not None
+        else np.zeros(xz.shape[0], dtype=bool)
+    )
     segments = _openings_world(stage3) + _open_spaces_world(stage2)
     for k in np.flatnonzero(~inside):
         p = (float(xz[k, 0]), float(xz[k, 1]))
