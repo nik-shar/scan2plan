@@ -53,6 +53,15 @@ class Outline(BaseModel):
     merge_tol_m: float = Field(default=0.25, ge=0.0)
     join_tol_m: float = Field(default=0.30, gt=0.0)
     evidence_tol_m: float = Field(default=0.05, gt=0.0)
+    # Wall completion (stage 2): bridge broken lines without erasing openings.
+    collinear_tol_m: float = Field(default=0.15, ge=0.0)
+    occ_band_m: float = Field(default=0.80, gt=0.0)
+    occ_min_cells: int = Field(default=40, ge=1)
+    dropout_max_m: float = Field(default=0.30, gt=0.0)
+    max_extend_m: float = Field(default=1.00, gt=0.0)
+    perp_tol_m: float = Field(default=0.10, gt=0.0)
+    ci_base_m: float = Field(default=0.03, ge=0.0)
+    ci_per_m: float = Field(default=0.15, ge=0.0)
     # Classification thresholds (stage 2).
     furniture_max_m: float = Field(default=1.0, gt=0.0)
     occluder_inset_m: tuple[float, float] = (0.3, 0.7)

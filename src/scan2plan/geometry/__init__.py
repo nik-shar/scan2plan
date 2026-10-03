@@ -14,6 +14,13 @@ from scan2plan.geometry.evidence import (
     wall_cells_with_support,
 )
 from scan2plan.geometry.planes import HorizontalPlane, horizontal_planes
+from scan2plan.geometry.wall_complete import (
+    CompletionParams,
+    CompletionResult,
+    WallPiece,
+    complete_walls,
+    completion_params_from_config,
+)
 from scan2plan.geometry.walls import (
     AXES,
     Segment,
@@ -29,7 +36,12 @@ __all__ = [
     "HorizontalPlane",
     "Segment",
     "WallParams",
+    "CompletionParams",
+    "CompletionResult",
+    "WallPiece",
     "camera_travel_m",
+    "complete_walls",
+    "completion_params_from_config",
     "explained_mask",
     "horizontal_planes",
     "observed_evidence",
