@@ -231,13 +231,33 @@ def build_wall_graph(
 ) -> WallGraph:
     """Turn completed wall pieces into a node/edge graph (plan 04i).
 
-    Nodes are wall intersections (inferred extensions allowed); collinear touching
-    segments merge into one edge; every node is typed by its incident directions; all
-    free ends are flagged dangling (no silent open ends). Deterministic.
+    Nodes are wall intersections (inferred extensions allowed) plus every wall-line
+    end; **all** nodes closer than ``node_merge_m`` are merged (line ends included),
+    collinear touching segments merge into one edge, and every node is typed by its
+    incident directions *after* merging. All free ends are flagged dangling (no silent
+    open ends). Deterministic.
     """
     walls = [replace(w) for w in walls]  # copy: candidate nodes may extend spans
-    nodes = _merge_nodes(_candidate_nodes(walls, cam_uv, params), params.node_merge_m)
+    # 1. candidate intersection nodes (inferred extensions allowed); this may extend a
+    #    wall piece's span, so the wall lines are built *after* the intersections.
+    nodes = _candidate_nodes(walls, cam_uv, params)
     lines = _wall_lines(walls, params.collinear_tol_m)
+    # 2. a node for every wall-line end not already covered nearby.
+    for ln in lines:
+        for endcoord in (ln.start, ln.end):
+            near = any(
+                abs((n.u if ln.axis == 0 else n.v) - ln.offset) <= params.node_tol_m
+                and abs((n.v if ln.axis == 0 else n.u) - endcoord) <= params.node_merge_m
+                for n in nodes
+            )
+            if not near:
+                nodes.append(
+                    GraphNode(id="", u=ln.offset, v=endcoord)
+                    if ln.axis == 0
+                    else GraphNode(id="", u=endcoord, v=ln.offset)
+                )
+    # 3. merge every node (intersections + line ends) within node_merge_m, then re-type.
+    nodes = _merge_nodes(nodes, params.node_merge_m)
 
     refs: list[tuple[int, int, float, float, str]] = []
     for ln in lines:
@@ -250,18 +270,6 @@ def build_wall_graph(
                 and ln.start - params.node_merge_m <= coord <= ln.end + params.node_merge_m
             ):
                 on.append(i)
-        for endcoord in (ln.start, ln.end):
-            near = any(
-                abs((nodes[i].v if ln.axis == 0 else nodes[i].u) - endcoord) <= params.node_merge_m
-                for i in on
-            )
-            if not near:
-                nodes.append(
-                    GraphNode(id="", u=ln.offset, v=endcoord)
-                    if ln.axis == 0
-                    else GraphNode(id="", u=endcoord, v=ln.offset)
-                )
-                on.append(len(nodes) - 1)
         on.sort(key=lambda i: nodes[i].v if ln.axis == 0 else nodes[i].u)
         for a, b in zip(on, on[1:], strict=False):
             ca = nodes[a].v if ln.axis == 0 else nodes[a].u

@@ -8,6 +8,7 @@ bridge; short gap must bridge as dropout; long evidence-free gap must stay open.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scan2plan.config import Config
 from scan2plan.geometry.wall_complete import (
@@ -19,6 +20,7 @@ from scan2plan.geometry.wall_complete import (
     WallPiece,
     complete_walls,
     completion_params_from_config,
+    merge_wall_pieces,
 )
 
 
@@ -98,3 +100,65 @@ def test_completion_params_from_config() -> None:
     assert p.collinear_tol_m == 0.15
     assert p.dropout_max_m == 0.30
     assert p.ci_base_m == 0.03 and p.ci_per_m == 0.15
+
+
+def test_completion_params_expose_width_cap_and_merge_tol() -> None:
+    p = completion_params_from_config(Config())
+    assert p.open_min_m == 0.5 and p.open_max_m == 2.5
+    assert p.merge_tol_m == 0.25
+
+
+def _crossed_gap(gap: float) -> tuple[list[WallPiece], np.ndarray]:
+    """A collinear wall broken by a gap ``gap`` the camera walks through (u = centre)."""
+    segs = [_piece(1, 0.0, 0.0, 3.0), _piece(1, 0.0, 3.0 + gap, 6.0 + gap)]
+    cam = np.array([[3.0 + gap / 2, -1.0], [3.0 + gap / 2, 1.0]])
+    return segs, cam
+
+
+def test_camera_crossed_gap_in_range_is_an_opening() -> None:
+    segs, cam = _crossed_gap(1.0)
+    r = complete_walls(segs, np.empty((0, 2)), cam, CompletionParams())
+    assert len(r.openings) == 1
+    assert r.openings[0].rule == "camera_path_crosses_gap"
+    assert not r.open_spaces
+
+
+def test_camera_crossed_gap_narrower_than_open_min_is_dropout() -> None:
+    segs, cam = _crossed_gap(0.3)
+    r = complete_walls(segs, np.empty((0, 2)), cam, CompletionParams())
+    assert not r.openings
+    assert any(w.provenance == DROPOUT and w.rule == "crossed_gap_below_open_min" for w in r.walls)
+
+
+def test_camera_crossed_gap_wider_than_open_max_is_open_space() -> None:
+    segs, cam = _crossed_gap(4.0)
+    r = complete_walls(segs, np.empty((0, 2)), cam, CompletionParams())
+    assert not r.openings
+    assert len(r.open_spaces) == 1
+    assert r.open_spaces[0].rule == "camera_crossed_wide_gap"
+
+
+def test_merge_wall_pieces_overlapping_faces_collapse_with_thickness() -> None:
+    pieces = [_piece(1, 0.0, 0.0, 2.0), _piece(1, 0.20, 0.5, 2.5)]
+    merged = merge_wall_pieces(pieces, CompletionParams())
+    assert len(merged) == 1
+    m = merged[0]
+    assert (m.start, m.end) == (0.0, 2.5)
+    assert m.thickness == pytest.approx(0.20)
+    assert m.merged_from == 2
+
+
+def test_merge_wall_pieces_abutting_same_provenance_merge() -> None:
+    pieces = [_piece(1, 0.0, 0.0, 2.0), _piece(1, 0.0, 2.0, 4.0)]
+    assert len(merge_wall_pieces(pieces, CompletionParams())) == 1
+
+
+def test_merge_wall_pieces_keep_bridge_provenance_when_only_abutting() -> None:
+    pieces = [
+        _piece(1, 0.0, 0.0, 2.0),
+        WallPiece(axis=1, offset=0.0, start=2.0, end=2.2, provenance=DROPOUT, rule="short_gap"),
+        _piece(1, 0.0, 2.2, 4.0),
+    ]
+    merged = merge_wall_pieces(pieces, CompletionParams())
+    assert len(merged) == 3  # a bridge that only abuts keeps its own provenance
+    assert any(m.provenance == DROPOUT for m in merged)

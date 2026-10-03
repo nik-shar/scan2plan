@@ -135,49 +135,67 @@ outermost lines); that is **rejected** here because the seed `c00a170fe1` has
   3. **all peaks -> runs**: for *each* axis take **every** histogram peak; on each
      peak's line, contiguous runs (gap <= `run_gap_m`) of length >= `min_run_m`
      become segments `{axis, offset, start, end, support, coverage}`;
-  4. **merge** parallel segments within `merge_tol_m` into one wall with a thickness;
+  4. **merge** parallel same-axis segments within `merge_tol_m` (overlapping/abutting
+     spans) into one wall with a thickness - applied to the completed pieces as well;
   5. **join** L/T junctions within `join_tol_m` (endpoint snapping);
   6. **complete** (`geometry/wall_complete.py`, adapted from the `wall_complete.py`
-     prototype): bridge broken collinear lines **without erasing openings** — a gap
-     the camera crossed is an **opening** (never bridged); furniture in front →
-     `inferred_occluded`; gap ≤ `dropout_max_m` → `inferred_dropout`; otherwise
-     `unknown` (left open, flagged). Dangling ends extend to a perpendicular wall
-     (`inferred_extension`). Every inferred piece's interval is
-     `ci_base_m + ci_per_m · assumed_length`.
+     prototype): bridge broken collinear lines **without erasing openings** — a
+     camera-crossed gap of width in [`open_min_m`, `open_max_m`] is an **opening**;
+     narrower → `inferred_dropout`; wider → **`open_space`** (a walk-through, not a
+     door); furniture in front → `inferred_occluded`; gap ≤ `dropout_max_m` →
+     `inferred_dropout`; otherwise `unknown` (left open, flagged). Dangling ends
+     extend to a perpendicular wall (`inferred_extension`). Every inferred piece's
+     interval is `ci_base_m + ci_per_m · assumed_length`.
   7. **graph** (`geometry/wall_graph.py`): every vertical × horizontal intersection
      is a **node** (inside both spans, tol `node_tol_m`; else a stub ≤ `max_extend_m`
-     the camera did not cross → node, inferred). Nodes merge within `node_merge_m`;
-     collinear touching segments become **one edge**; each node is typed by its
-     incident directions (`L` / `T` / `cross` / `dangling_end`); **every** free end
-     is a dangling flag (no silent open ends).
+     the camera did not cross → node, inferred). **All** nodes within `node_merge_m`
+     (line ends included) are merged **before** the nodes are re-typed by their
+     incident directions (`L` / `T` / `cross` / `dangling_end`); collinear touching
+     segments become **one edge**; **every** free end is a dangling flag (no silent
+     open ends).
   Every threshold is an I4 `outline` key (new: `merge_tol_m`, `join_tol_m`,
   `evidence_tol_m`, `collinear_tol_m`, `occ_band_m`, `occ_min_cells`,
   `dropout_max_m`, `max_extend_m`, `perp_tol_m`, `ci_base_m`, `ci_per_m`,
-  `node_tol_m`, `node_merge_m`, all append-only); no frozen-interface change.
+  `node_tol_m`, `node_merge_m`, `open_min_m`, `open_max_m`, `blob_bin_m`,
+  `blob_min_cells`, all append-only); no frozen-interface change.
 
 **Explainability / evidence.** Each segment carries `support`, `coverage`,
 `provenance` (`observed` | `inferred_occluded` | `inferred_dropout` |
-`inferred_extension`) and the firing `rule`. `evidence_explained` = share of wall
-**cells** within `evidence_tol_m` (5 cm) of a segment, reported over *all* cells and
-over the support-gated `kept` cells (computed on the observed segments, so inferred
-bridges do not inflate it). Unexplained cells are counted and drawn **red**;
-segments blue, inferred orange, openings green, unknown gaps purple. The camera path
-start/end are marked (stage-1 addition).
+`inferred_extension`) and the firing `rule`. `evidence` partitions every wall cell
+(within `evidence_tol_m` = 5 cm of an observed segment) into **`wall_like_explained`**
+/ **`dense_blobs`** (a `blob_bin_m` bin with ≥ `blob_min_cells` unexplained cells —
+furniture/occluder) / **`residual_noise`**; `evidence_explained` (over all cells) and
+`evidence_explained_kept` (over the support-gated `kept` cells) are also kept. A
+`lengths` block reports `observed_length_m`, `inferred_length_m` and the
+`longest_inferred_run_m`, flagging any inferred run > `max_extend_m`. A `merge` block
+reports segments / nodes / crosses before→after. SVG: wall-like grey, dense blob
+orange, residual noise pale red; segments blue, inferred orange, openings green,
+`open_space` teal, unknown gaps purple. The camera path start/end are marked.
 
-**Results (three seeds, stride 20).** "before" = the rejected rectangle.
+**Results (three seeds, stride 20).** "before" = the rejected rectangle. `open_space`
+= a camera-crossed gap wider than `open_max_m` (2.5 m). "wall_like / dense_blob /
+residual" is the evidence split (share of all wall cells).
 
-| Capture | angle | before (rect) | segments (obs/inf) | openings | bridges (occl/dropout) + ext | evidence (all / kept) | unexplained |
+| Capture | angle | before (rect) | segments (obs/inf) | open_space | bridges (occl/dropout) + ext | wall_like / dense_blob / residual | kept explained |
 |---|---|---|---|---|---|---|---|
-| `c00a170fe1` | 22.5° | 11.5% | **11** (9/2) | 0 | 1 / 0 + 1 | 21.0% / 58.9% | 17,383 |
-| `1a8384c3f6` | 87.0° | 5.1% | **37** (21/16) | 1 | 4 / 0 + 12 | 14.9% / 36.1% | 32,551 |
-| `c7d28f72c6` | 28.5° | 3.8% | **41** (27/14) | 1 | 4 / 0 + 10 | 16.6% / 40.4% | 42,400 |
+| `c00a170fe1` | 22.5° | 11.5% | **11** (9/2) | 0 | 1 / 0 + 1 | 21.0% / 74.3% / 4.7% | 58.9% |
+| `1a8384c3f6` | 87.0° | 5.1% | **35** (21/14) | 1 | 4 / 0 + 12 | 14.9% / 70.4% / 14.7% | 36.1% |
+| `c7d28f72c6` | 28.5° | 3.8% | **39** (27/12) | 1 | 4 / 0 + 10 | 16.6% / 72.8% / 10.6% | 40.4% |
 
 Median wall-length interval: ±1.8 cm / ±3.2 cm / ±3.2 cm. Per-segment lengths,
 support/coverage and the full before/after breakdown live in
 `docs/plans/04i-stage2-report.md` and `bench/stage2_{before,after}/`.
 
+**Lengths / merge.** Observed/inferred wall length **17.0 / 6.5**, **49.0 / 25.2**,
+**64.5 / 24.6** m; longest inferred run **5.98 / 4.51 / 4.67** m (over `max_extend_m`
+1 m: **1 / 11 / 6** flagged). The completion→merge pass (`merge_wall_pieces`)
+collapses **37→35** and **41→39** walls (11 thick each; 1 on `c00a170fe1`) but leaves
+the node count unchanged (15 / 42 / 52); **crosses stay 0 / 4 / 6** and are reported
+honestly — they are genuine 4-way meetings of interior walls (the near-parallel lines
+that inflate the count sit 0.31 m apart, above `merge_tol_m` 0.25).
+
 **Graph (nodes / edges).** `c00a170fe1` 15/11 (L 3, T 2, cross 0, dangling 10);
-`1a8384c3f6` 44/44 (L 10, T 11, cross 4, dangling 19); `c7d28f72c6` 52/62 (L 6,
+`1a8384c3f6` 42/42 (L 8, T 11, cross 4, dangling 19); `c7d28f72c6` 52/62 (L 6,
 T 24, cross 6, dangling 16). Every `dangling_end` node also appears in
 `dangling_ends[]` with a location — no silent open ends.
 
@@ -187,10 +205,11 @@ T 24, cross 6, dangling 16). Every `dangling_end` node also appears in
   (fix-loop material, plan `06`).
 - `evidence_explained` over *all* wall cells is low (15-21%) because ~58% of the
   stage-1 wall cells are single-height-bin noise; over the support-gated `kept`
-  cells it is 36-59%, and interior/occluded walls are only partly recovered.
-- On real captures the camera crossed a wide (5-7 m) collinear gap, reported as one
-  large **opening** — the rule is literal (camera crossed ⇒ opening), so wide
-  passages / two wall runs with a walk-through are not further classified yet.
+  cells it is 36-59%, and interior/occluded walls are only partly recovered. The new
+  split shows most unexplained cells are **dense blobs** (furniture/occluder), not
+  sparse noise.
+- On real captures the camera crossed a wide (5-7 m) collinear gap; with the
+  opening-width cap it is now an **`open_space`** (a walk-through), not a door.
 
 **Tests** `tests/test_wall_graph.py` (11): L/T/cross corners, node merge,
 collinear-touching → one edge, inferred extension node, camera crossing prevents an

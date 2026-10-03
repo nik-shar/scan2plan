@@ -19,6 +19,7 @@
     "bridged_dropout": 0,
     "bridged_occluded": 1,
     "extended": 1,
+    "open_spaces": 0,
     "openings": 0,
     "unknown_gaps": 0
   },
@@ -28,8 +29,14 @@
     "cells_kept_explained": 2962,
     "cells_total": 22007,
     "cells_unexplained": 17383,
+    "dense_blob_frac": 0.7428,
+    "dense_blobs": 16347,
     "evidence_explained": 0.2101,
-    "evidence_explained_kept": 0.589
+    "evidence_explained_kept": 0.589,
+    "residual_noise": 1036,
+    "residual_noise_frac": 0.0471,
+    "wall_like_explained": 4624,
+    "wall_like_frac": 0.2101
   },
   "extent_world": {
     "x_m": [
@@ -527,11 +534,36 @@
       "to_axis": "u"
     }
   ],
+  "lengths": {
+    "inferred_length_m": 6.4762,
+    "inferred_runs_over_max_extend": 1,
+    "longest_inferred_run_m": 5.9762,
+    "max_extend_m": 1.0,
+    "observed_length_m": 16.9831
+  },
   "manhattan_angle_deg": 22.5,
+  "merge": {
+    "crosses_after": 0,
+    "crosses_before": 0,
+    "nodes_after": 15,
+    "nodes_before": 15,
+    "segments_after": 11,
+    "segments_before": 11,
+    "thick_walls": 1
+  },
   "name": "wall segments",
+  "node_counts": {
+    "L": 3,
+    "T": 2,
+    "cross": 0,
+    "dangling_end": 10
+  },
   "observed_count": 9,
+  "open_spaces": [],
   "openings": [],
   "params": {
+    "blob_bin_m": 0.1,
+    "blob_min_cells": 6,
     "cell_m": 0.02,
     "ci_base_m": 0.03,
     "ci_per_m": 0.15,
@@ -544,6 +576,10 @@
     "min_height_bins": 4,
     "min_peak_frac": 0.15,
     "min_run_m": 1.2,
+    "node_merge_m": 0.1,
+    "node_tol_m": 0.05,
+    "open_max_m": 2.5,
+    "open_min_m": 0.5,
     "peak_smooth": 5,
     "run_gap_m": 0.1
   },
@@ -980,5 +1016,7 @@
   ],
   "unknown_gaps": [],
   "wall_count": 11,
-  "warnings": []
+  "warnings": [
+    "1 inferred run(s) exceed max_extend_m 1.0 (longest 5.98 m) - flagged"
+  ]
 }

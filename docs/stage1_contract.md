@@ -100,11 +100,18 @@ artifact only** — `layers.wall_cells` (`x`/`z`/`support`), `layers.floor_cells
 sidecar. It never re-reads the raw cloud, so *this artifact + config fully determine
 it* (byte-reproducible). It applies the `min_height_bins` support gate, takes **every**
 histogram peak, keeps contiguous runs >= `min_run_m`, merges parallel segments within
-`merge_tol_m`, joins L/T junctions within `join_tol_m`, and finally **completes** the
-walls (`geometry/wall_complete.py`): a gap the camera crossed becomes an opening,
-furniture-in-front or a short dropout is bridged, and dangling ends extend to a
-perpendicular wall. It reports `evidence_explained` (share of wall cells within
-`evidence_tol_m` of a segment).
+`merge_tol_m`, joins L/T junctions within `join_tol_m`, and **completes** the walls
+(`geometry/wall_complete.py`): a camera-crossed gap of width in
+[`open_min_m`, `open_max_m`] becomes an **opening**, narrower is a **dropout**, wider
+is **`open_space`** (a walk-through, not a door), furniture-in-front or a short
+dropout is bridged, and dangling ends extend to a perpendicular wall. The completed
+pieces are **merged** again (parallel, offset within `merge_tol_m`, overlapping spans
+→ one wall with `thickness_m`), and the wall graph merges **all** nodes within
+`node_merge_m` before re-typing them. The sidecar reports a split of the wall cells
+into `wall_like_explained` / `dense_blobs` / `residual_noise` (with the legacy
+`evidence_explained` ratios), a `lengths` block (`observed_length_m`,
+`inferred_length_m`, `longest_inferred_run_m`, flagged when > `max_extend_m`) and a
+`merge` block (segments / nodes / crosses before→after).
 
 Because each layer is capped here at `EVIDENCE_LAYER_CAP`, stage 2 warns
 `stage1_layer_capped` and fits the deterministic subsample when the true count

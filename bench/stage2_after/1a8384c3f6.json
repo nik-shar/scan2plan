@@ -19,7 +19,8 @@
     "bridged_dropout": 0,
     "bridged_occluded": 4,
     "extended": 12,
-    "openings": 1,
+    "open_spaces": 1,
+    "openings": 0,
     "unknown_gaps": 0
   },
   "evidence": {
@@ -28,8 +29,14 @@
     "cells_kept_explained": 3326,
     "cells_total": 38244,
     "cells_unexplained": 32551,
+    "dense_blob_frac": 0.704,
+    "dense_blobs": 26923,
     "evidence_explained": 0.1489,
-    "evidence_explained_kept": 0.3608
+    "evidence_explained_kept": 0.3608,
+    "residual_noise": 5628,
+    "residual_noise_frac": 0.1472,
+    "wall_like_explained": 5693,
+    "wall_like_frac": 0.1489
   },
   "extent_world": {
     "x_m": [
@@ -43,7 +50,7 @@
   },
   "graph": {
     "counts": {
-      "L": 10,
+      "L": 8,
       "T": 11,
       "cross": 4,
       "dangling_end": 19
@@ -86,7 +93,7 @@
         ]
       },
       {
-        "node_id": "n14",
+        "node_id": "n12",
         "reason": "open_end",
         "uv": [
           0.5858,
@@ -98,7 +105,7 @@
         ]
       },
       {
-        "node_id": "n17",
+        "node_id": "n15",
         "reason": "open_end",
         "uv": [
           2.2942,
@@ -110,7 +117,7 @@
         ]
       },
       {
-        "node_id": "n19",
+        "node_id": "n17",
         "reason": "open_end",
         "uv": [
           2.684,
@@ -122,7 +129,7 @@
         ]
       },
       {
-        "node_id": "n20",
+        "node_id": "n18",
         "reason": "open_end",
         "uv": [
           2.684,
@@ -134,7 +141,7 @@
         ]
       },
       {
-        "node_id": "n23",
+        "node_id": "n21",
         "reason": "open_end",
         "uv": [
           2.7621,
@@ -146,7 +153,7 @@
         ]
       },
       {
-        "node_id": "n24",
+        "node_id": "n22",
         "reason": "open_end",
         "uv": [
           3.8446,
@@ -158,7 +165,7 @@
         ]
       },
       {
-        "node_id": "n25",
+        "node_id": "n23",
         "reason": "open_end",
         "uv": [
           3.8703,
@@ -170,7 +177,7 @@
         ]
       },
       {
-        "node_id": "n27",
+        "node_id": "n25",
         "reason": "open_end",
         "uv": [
           3.9442,
@@ -182,7 +189,7 @@
         ]
       },
       {
-        "node_id": "n28",
+        "node_id": "n26",
         "reason": "open_end",
         "uv": [
           4.5063,
@@ -194,7 +201,7 @@
         ]
       },
       {
-        "node_id": "n31",
+        "node_id": "n29",
         "reason": "open_end",
         "uv": [
           4.8324,
@@ -206,7 +213,7 @@
         ]
       },
       {
-        "node_id": "n38",
+        "node_id": "n36",
         "reason": "open_end",
         "uv": [
           5.6297,
@@ -218,7 +225,7 @@
         ]
       },
       {
-        "node_id": "n39",
+        "node_id": "n37",
         "reason": "open_end",
         "uv": [
           6.2316,
@@ -230,7 +237,7 @@
         ]
       },
       {
-        "node_id": "n40",
+        "node_id": "n38",
         "reason": "open_end",
         "uv": [
           6.4893,
@@ -242,7 +249,7 @@
         ]
       },
       {
-        "node_id": "n41",
+        "node_id": "n39",
         "reason": "open_end",
         "uv": [
           7.4816,
@@ -254,7 +261,7 @@
         ]
       },
       {
-        "node_id": "n42",
+        "node_id": "n40",
         "reason": "open_end",
         "uv": [
           8.5381,
@@ -266,7 +273,7 @@
         ]
       },
       {
-        "node_id": "n44",
+        "node_id": "n42",
         "reason": "open_end",
         "uv": [
           9.0163,
@@ -278,7 +285,7 @@
         ]
       }
     ],
-    "edge_count": 44,
+    "edge_count": 42,
     "edges": [
       {
         "ci_m": 0.0326,
@@ -300,7 +307,7 @@
         "ci_m": 0.2212,
         "id": "e3",
         "length_m": 2.7163,
-        "node_a": "n9",
+        "node_a": "n6",
         "node_b": "n7",
         "provenance": "observed"
       },
@@ -317,149 +324,149 @@
         "id": "e5",
         "length_m": 3.0207,
         "node_a": "n8",
-        "node_b": "n10",
+        "node_b": "n9",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0836,
         "id": "e6",
         "length_m": 0.3576,
-        "node_a": "n12",
-        "node_b": "n13",
+        "node_a": "n10",
+        "node_b": "n11",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0836,
         "id": "e7",
         "length_m": 1.4906,
-        "node_a": "n13",
-        "node_b": "n14",
+        "node_a": "n11",
+        "node_b": "n12",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0677,
         "id": "e8",
         "length_m": 1.7669,
-        "node_a": "n15",
-        "node_b": "n16",
+        "node_a": "n13",
+        "node_b": "n14",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0,
         "id": "e9",
         "length_m": 1.9616,
-        "node_a": "n19",
-        "node_b": "n18",
+        "node_a": "n17",
+        "node_b": "n16",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e10",
         "length_m": 5.2316,
-        "node_a": "n18",
-        "node_b": "n21",
+        "node_a": "n16",
+        "node_b": "n19",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e11",
         "length_m": 1.7669,
-        "node_a": "n21",
-        "node_b": "n22",
+        "node_a": "n19",
+        "node_b": "n20",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e12",
         "length_m": 1.2899,
-        "node_a": "n22",
-        "node_b": "n20",
+        "node_a": "n20",
+        "node_b": "n18",
         "provenance": "observed"
       },
       {
         "ci_m": 0.039,
         "id": "e13",
         "length_m": 1.3102,
-        "node_a": "n26",
-        "node_b": "n27",
+        "node_a": "n24",
+        "node_b": "n25",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0,
         "id": "e14",
         "length_m": 1.1396,
-        "node_a": "n28",
-        "node_b": "n29",
+        "node_a": "n26",
+        "node_b": "n27",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e15",
         "length_m": 2.2103,
-        "node_a": "n29",
-        "node_b": "n30",
+        "node_a": "n27",
+        "node_b": "n28",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e16",
         "length_m": 0.4706,
-        "node_a": "n31",
-        "node_b": "n32",
+        "node_a": "n29",
+        "node_b": "n30",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e17",
         "length_m": 2.2103,
-        "node_a": "n32",
-        "node_b": "n33",
+        "node_a": "n30",
+        "node_b": "n31",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0854,
         "id": "e18",
         "length_m": 0.9872,
-        "node_a": "n34",
-        "node_b": "n35",
+        "node_a": "n32",
+        "node_b": "n33",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0854,
         "id": "e19",
         "length_m": 1.7669,
-        "node_a": "n35",
-        "node_b": "n36",
+        "node_a": "n33",
+        "node_b": "n34",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0,
         "id": "e20",
         "length_m": 1.5173,
-        "node_a": "n37",
-        "node_b": "n38",
+        "node_a": "n35",
+        "node_b": "n36",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e21",
         "length_m": 2.8215,
-        "node_a": "n42",
-        "node_b": "n43",
+        "node_a": "n40",
+        "node_b": "n41",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0467,
         "id": "e22",
         "length_m": 1.6855,
-        "node_a": "n26",
-        "node_b": "n37",
+        "node_a": "n24",
+        "node_b": "n35",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0,
         "id": "e23",
-        "length_m": 0.302,
+        "length_m": 0.3283,
         "node_a": "n4",
         "node_b": "n6",
         "provenance": "observed"
@@ -467,173 +474,157 @@
       {
         "ci_m": 0.0,
         "id": "e24",
-        "length_m": 0.0526,
+        "length_m": 2.2013,
         "node_a": "n6",
-        "node_b": "n9",
-        "provenance": "observed"
-      },
-      {
-        "ci_m": 0.0,
-        "id": "e25",
-        "length_m": 2.175,
-        "node_a": "n9",
-        "node_b": "n17",
+        "node_b": "n15",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0315,
-        "id": "e26",
+        "id": "e25",
         "length_m": 1.2103,
-        "node_a": "n18",
-        "node_b": "n25",
+        "node_a": "n16",
+        "node_b": "n23",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1418,
+        "id": "e26",
+        "length_m": 0.4929,
+        "node_a": "n7",
+        "node_b": "n10",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.1418,
         "id": "e27",
-        "length_m": 0.4929,
-        "node_a": "n7",
-        "node_b": "n12",
+        "length_m": 2.1763,
+        "node_a": "n10",
+        "node_b": "n21",
         "provenance": "inferred_extension"
       },
       {
-        "ci_m": 0.1418,
+        "ci_m": 0.1079,
         "id": "e28",
-        "length_m": 2.1763,
-        "node_a": "n12",
-        "node_b": "n23",
+        "length_m": 0.4929,
+        "node_a": "n8",
+        "node_b": "n11",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.1079,
         "id": "e29",
-        "length_m": 0.4929,
-        "node_a": "n8",
-        "node_b": "n13",
+        "length_m": 3.9205,
+        "node_a": "n11",
+        "node_b": "n27",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.1079,
         "id": "e30",
-        "length_m": 3.9205,
-        "node_a": "n13",
-        "node_b": "n29",
+        "length_m": 0.3261,
+        "node_a": "n27",
+        "node_b": "n30",
         "provenance": "inferred_extension"
       },
       {
-        "ci_m": 0.1079,
+        "ci_m": 0.039,
         "id": "e31",
         "length_m": 0.3261,
-        "node_a": "n29",
-        "node_b": "n32",
+        "node_a": "n28",
+        "node_b": "n31",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.039,
         "id": "e32",
-        "length_m": 0.3261,
-        "node_a": "n30",
-        "node_b": "n33",
-        "provenance": "inferred_extension"
-      },
-      {
-        "ci_m": 0.039,
-        "id": "e33",
         "length_m": 4.1839,
-        "node_a": "n33",
-        "node_b": "n44",
+        "node_a": "n31",
+        "node_b": "n42",
         "provenance": "inferred_extension"
       },
       {
         "ci_m": 0.0,
-        "id": "e34",
-        "length_m": 1.2904,
+        "id": "e33",
+        "length_m": 1.3167,
         "node_a": "n2",
-        "node_b": "n10",
+        "node_b": "n9",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e34",
+        "length_m": 3.699,
+        "node_a": "n9",
+        "node_b": "n22",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e35",
-        "length_m": 0.0526,
-        "node_a": "n10",
-        "node_b": "n11",
+        "length_m": 1.3821,
+        "node_a": "n32",
+        "node_b": "n38",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e36",
-        "length_m": 3.6727,
-        "node_a": "n11",
-        "node_b": "n24",
+        "length_m": 0.7967,
+        "node_a": "n13",
+        "node_b": "n19",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e37",
-        "length_m": 1.3821,
-        "node_a": "n34",
-        "node_b": "n40",
+        "length_m": 2.3993,
+        "node_a": "n19",
+        "node_b": "n33",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e38",
-        "length_m": 0.7967,
-        "node_a": "n15",
-        "node_b": "n21",
-        "provenance": "observed"
-      },
-      {
-        "ci_m": 0.0,
-        "id": "e39",
-        "length_m": 2.3993,
-        "node_a": "n21",
-        "node_b": "n35",
-        "provenance": "observed"
-      },
-      {
-        "ci_m": 0.0,
-        "id": "e40",
         "length_m": 1.25,
-        "node_a": "n39",
-        "node_b": "n41",
+        "node_a": "n37",
+        "node_b": "n39",
         "provenance": "observed"
       },
       {
         "ci_m": 0.2951,
-        "id": "e41",
+        "id": "e39",
         "length_m": 5.5205,
         "node_a": "n1",
-        "node_b": "n16",
+        "node_b": "n14",
         "provenance": "observed"
       },
       {
         "ci_m": 0.2951,
-        "id": "e42",
+        "id": "e40",
         "length_m": 0.7967,
-        "node_a": "n16",
-        "node_b": "n22",
+        "node_a": "n14",
+        "node_b": "n20",
         "provenance": "observed"
       },
       {
         "ci_m": 0.3525,
-        "id": "e43",
+        "id": "e41",
         "length_m": 2.3993,
-        "node_a": "n22",
-        "node_b": "n36",
+        "node_a": "n20",
+        "node_b": "n34",
         "provenance": "observed"
       },
       {
         "ci_m": 0.3525,
-        "id": "e44",
+        "id": "e42",
         "length_m": 3.4308,
-        "node_a": "n36",
-        "node_b": "n43",
+        "node_a": "n34",
+        "node_b": "n41",
         "provenance": "observed"
       }
     ],
-    "node_count": 44,
+    "node_count": 42,
     "nodes": [
       {
         "id": "n1",
@@ -703,14 +694,14 @@
       {
         "id": "n6",
         "inferred": false,
-        "type": "L",
+        "type": "T",
         "uv": [
-          0.0666,
+          0.0929,
           -2.3766
         ],
         "world": [
-          2.3768,
-          -0.0579
+          2.3782,
+          -0.0316
         ]
       },
       {
@@ -744,42 +735,16 @@
         "inferred": false,
         "type": "T",
         "uv": [
-          0.1192,
-          -2.3766
+          0.1455,
+          3.7179
         ],
         "world": [
-          2.3796,
-          -0.0053
+          -3.7052,
+          0.3399
         ]
       },
       {
         "id": "n10",
-        "inferred": false,
-        "type": "T",
-        "uv": [
-          0.1192,
-          3.7179
-        ],
-        "world": [
-          -3.7066,
-          0.3136
-        ]
-      },
-      {
-        "id": "n11",
-        "inferred": false,
-        "type": "L",
-        "uv": [
-          0.1719,
-          3.7179
-        ],
-        "world": [
-          -3.7038,
-          0.3662
-        ]
-      },
-      {
-        "id": "n12",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -792,7 +757,7 @@
         ]
       },
       {
-        "id": "n13",
+        "id": "n11",
         "inferred": false,
         "type": "cross",
         "uv": [
@@ -805,7 +770,7 @@
         ]
       },
       {
-        "id": "n14",
+        "id": "n12",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -818,7 +783,7 @@
         ]
       },
       {
-        "id": "n15",
+        "id": "n13",
         "inferred": false,
         "type": "L",
         "uv": [
@@ -831,7 +796,7 @@
         ]
       },
       {
-        "id": "n16",
+        "id": "n14",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -844,7 +809,7 @@
         ]
       },
       {
-        "id": "n17",
+        "id": "n15",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -857,7 +822,7 @@
         ]
       },
       {
-        "id": "n18",
+        "id": "n16",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -870,7 +835,7 @@
         ]
       },
       {
-        "id": "n19",
+        "id": "n17",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -883,7 +848,7 @@
         ]
       },
       {
-        "id": "n20",
+        "id": "n18",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -896,7 +861,7 @@
         ]
       },
       {
-        "id": "n21",
+        "id": "n19",
         "inferred": false,
         "type": "cross",
         "uv": [
@@ -909,7 +874,7 @@
         ]
       },
       {
-        "id": "n22",
+        "id": "n20",
         "inferred": false,
         "type": "cross",
         "uv": [
@@ -922,7 +887,7 @@
         ]
       },
       {
-        "id": "n23",
+        "id": "n21",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -935,7 +900,7 @@
         ]
       },
       {
-        "id": "n24",
+        "id": "n22",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -948,7 +913,7 @@
         ]
       },
       {
-        "id": "n25",
+        "id": "n23",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -961,7 +926,7 @@
         ]
       },
       {
-        "id": "n26",
+        "id": "n24",
         "inferred": false,
         "type": "L",
         "uv": [
@@ -974,7 +939,7 @@
         ]
       },
       {
-        "id": "n27",
+        "id": "n25",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -987,7 +952,7 @@
         ]
       },
       {
-        "id": "n28",
+        "id": "n26",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1000,7 +965,7 @@
         ]
       },
       {
-        "id": "n29",
+        "id": "n27",
         "inferred": false,
         "type": "cross",
         "uv": [
@@ -1013,7 +978,7 @@
         ]
       },
       {
-        "id": "n30",
+        "id": "n28",
         "inferred": false,
         "type": "L",
         "uv": [
@@ -1026,7 +991,7 @@
         ]
       },
       {
-        "id": "n31",
+        "id": "n29",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1039,7 +1004,7 @@
         ]
       },
       {
-        "id": "n32",
+        "id": "n30",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -1052,7 +1017,7 @@
         ]
       },
       {
-        "id": "n33",
+        "id": "n31",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -1065,7 +1030,7 @@
         ]
       },
       {
-        "id": "n34",
+        "id": "n32",
         "inferred": false,
         "type": "L",
         "uv": [
@@ -1078,7 +1043,7 @@
         ]
       },
       {
-        "id": "n35",
+        "id": "n33",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -1091,7 +1056,7 @@
         ]
       },
       {
-        "id": "n36",
+        "id": "n34",
         "inferred": true,
         "type": "T",
         "uv": [
@@ -1104,7 +1069,7 @@
         ]
       },
       {
-        "id": "n37",
+        "id": "n35",
         "inferred": false,
         "type": "L",
         "uv": [
@@ -1117,7 +1082,7 @@
         ]
       },
       {
-        "id": "n38",
+        "id": "n36",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1130,7 +1095,7 @@
         ]
       },
       {
-        "id": "n39",
+        "id": "n37",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1143,7 +1108,7 @@
         ]
       },
       {
-        "id": "n40",
+        "id": "n38",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1156,7 +1121,7 @@
         ]
       },
       {
-        "id": "n41",
+        "id": "n39",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1169,7 +1134,7 @@
         ]
       },
       {
-        "id": "n42",
+        "id": "n40",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1182,7 +1147,7 @@
         ]
       },
       {
-        "id": "n43",
+        "id": "n41",
         "inferred": false,
         "type": "L",
         "uv": [
@@ -1195,7 +1160,7 @@
         ]
       },
       {
-        "id": "n44",
+        "id": "n42",
         "inferred": false,
         "type": "dangling_end",
         "uv": [
@@ -1209,7 +1174,7 @@
       }
     ]
   },
-  "inferred_count": 16,
+  "inferred_count": 14,
   "junctions": [
     {
       "axis": "u",
@@ -1420,10 +1385,32 @@
       "to_axis": "u"
     }
   ],
+  "lengths": {
+    "inferred_length_m": 25.1842,
+    "inferred_runs_over_max_extend": 11,
+    "longest_inferred_run_m": 4.51,
+    "max_extend_m": 1.0,
+    "observed_length_m": 49.0441
+  },
   "manhattan_angle_deg": 87.0,
+  "merge": {
+    "crosses_after": 4,
+    "crosses_before": 4,
+    "nodes_after": 42,
+    "nodes_before": 42,
+    "segments_after": 35,
+    "segments_before": 37,
+    "thick_walls": 11
+  },
   "name": "wall segments",
+  "node_counts": {
+    "L": 8,
+    "T": 11,
+    "cross": 4,
+    "dangling_end": 19
+  },
   "observed_count": 21,
-  "openings": [
+  "open_spaces": [
     {
       "axis": "u",
       "end_m": 5.0372,
@@ -1437,26 +1424,18 @@
           2.944
         ]
       },
-      "id": "open_1",
-      "kind": "door",
+      "id": "open_space_1",
+      "kind": "open_space",
+      "length_m": 5.2316,
       "offset_m": 2.684,
-      "rule": "camera_path_crosses_gap",
-      "start_m": -0.1944,
-      "width": {
-        "ci_high": 5.284,
-        "ci_low": 5.1793,
-        "id": "open_1.width",
-        "kind": "opening_width",
-        "method": "camera_path_cross",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 5.2316
-      }
+      "rule": "camera_crossed_wide_gap",
+      "start_m": -0.1944
     }
   ],
+  "openings": [],
   "params": {
+    "blob_bin_m": 0.1,
+    "blob_min_cells": 6,
     "cell_m": 0.02,
     "ci_base_m": 0.03,
     "ci_per_m": 0.15,
@@ -1469,6 +1448,10 @@
     "min_height_bins": 4,
     "min_peak_frac": 0.15,
     "min_run_m": 1.2,
+    "node_merge_m": 0.1,
+    "node_tol_m": 0.05,
+    "open_max_m": 2.5,
+    "open_min_m": 0.5,
     "peak_smooth": 5,
     "run_gap_m": 0.1
   },
@@ -2697,7 +2680,7 @@
           3.0604
         ]
       },
-      "extension_m": 0.0,
+      "extension_m": 0.9705,
       "id": "wall_32",
       "inferred": true,
       "length": {
@@ -2712,90 +2695,12 @@
         "unit": "m",
         "value": 1.7672
       },
-      "merged_from": 1,
-      "offset_m": 6.8041,
-      "peak_strength": 0.0,
-      "provenance": "inferred_occluded",
-      "rule": "furniture_in_front_of_gap",
-      "start_m": 0.9407,
-      "support": 0,
-      "thickness_m": 0.0
-    },
-    {
-      "axis": "v",
-      "ci_m": 0.1756,
-      "coverage": 0.0,
-      "end_m": 1.9112,
-      "endpoints_world": {
-        "a": [
-          -6.7456,
-          1.2955
-        ],
-        "b": [
-          -6.6948,
-          2.2647
-        ]
-      },
-      "extension_m": 0.9705,
-      "id": "wall_33",
-      "inferred": true,
-      "length": {
-        "ci_high": 1.1461,
-        "ci_low": 0.7949,
-        "id": "wall_33.length",
-        "kind": "wall_length",
-        "method": "wall_segment",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 0.9705
-      },
-      "merged_from": 1,
+      "merged_from": 3,
       "offset_m": 6.8041,
       "peak_strength": 0.0,
       "provenance": "inferred_extension",
       "rule": "dangling_end_meets_wall",
       "start_m": 0.9407,
-      "support": 0,
-      "thickness_m": 0.0
-    },
-    {
-      "axis": "v",
-      "ci_m": 0.1495,
-      "coverage": 0.0,
-      "end_m": 2.708,
-      "endpoints_world": {
-        "a": [
-          -6.6948,
-          2.2647
-        ],
-        "b": [
-          -6.6531,
-          3.0604
-        ]
-      },
-      "extension_m": 0.7967,
-      "id": "wall_34",
-      "inferred": true,
-      "length": {
-        "ci_high": 0.9462,
-        "ci_low": 0.6472,
-        "id": "wall_34.length",
-        "kind": "wall_length",
-        "method": "wall_segment",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 0.7967
-      },
-      "merged_from": 1,
-      "offset_m": 6.8041,
-      "peak_strength": 0.0,
-      "provenance": "inferred_extension",
-      "rule": "dangling_end_meets_wall",
-      "start_m": 1.9112,
       "support": 0,
       "thickness_m": 0.0
     },
@@ -2815,12 +2720,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_35",
+      "id": "wall_33",
       "inferred": false,
       "length": {
         "ci_high": 1.6491,
         "ci_low": 1.6164,
-        "id": "wall_35.length",
+        "id": "wall_33.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2854,12 +2759,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_36",
+      "id": "wall_34",
       "inferred": true,
       "length": {
         "ci_high": 2.5025,
         "ci_low": 1.7975,
-        "id": "wall_36.length",
+        "id": "wall_34.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2893,12 +2798,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_37",
+      "id": "wall_35",
       "inferred": false,
       "length": {
         "ci_high": 2.0678,
         "ci_low": 2.0269,
-        "id": "wall_37.length",
+        "id": "wall_35.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2918,9 +2823,11 @@
     }
   ],
   "unknown_gaps": [],
-  "wall_count": 37,
+  "wall_count": 35,
   "warnings": [
     "stage1_layer_capped: wall cells were subsampled by stage 1",
-    "low evidence_explained_kept 36% (5893 of 9219 kept cells unexplained)"
+    "11 inferred run(s) exceed max_extend_m 1.0 (longest 4.51 m) - flagged",
+    "low evidence_explained_kept 36% (5893 of 9219 kept cells unexplained)",
+    "4 cross junction(s) remain after merge (was 4); they are genuine 4-way meetings of interior walls - near-parallel lines closer than merge_tol_m 0.25 m would otherwise merge"
   ]
 }

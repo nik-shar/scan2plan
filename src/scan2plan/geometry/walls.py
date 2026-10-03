@@ -40,11 +40,13 @@ from scan2plan.cir.measure import Tier
 from scan2plan.config import Config
 from scan2plan.geometry.wall_complete import (
     EXTENSION,
+    KIND_OPEN_SPACE,
     CompletionParams,
     CompletionResult,
     WallPiece,
     complete_walls,
     completion_params_from_config,
+    merge_wall_pieces,
 )
 from scan2plan.geometry.wall_graph import (
     WallGraph,
@@ -413,6 +415,32 @@ def explained_mask(xz: NDArray[np.float64], segs: list[Segment], tol: float) -> 
     return d <= tol
 
 
+def dense_blob_mask(
+    uv: NDArray[np.float64],
+    unexplained: NDArray[np.bool_],
+    bin_m: float,
+    min_cells: int,
+) -> NDArray[np.bool_]:
+    """Mark unexplained cells that fall in a dense bin (furniture/occluder blobs).
+
+    ``uv`` is the full cell set in the Manhattan frame; ``unexplained`` is a boolean
+    mask over it (cells not near an observed segment). A ``bin_m`` grid bin holding
+    >= ``min_cells`` unexplained cells is "dense"; a cell is a blob when it is
+    unexplained and its bin is dense. The remaining unexplained cells are residual
+    noise. Deterministic (binning + counting, no RNG).
+    """
+    out = np.zeros(uv.shape[0], dtype=bool)
+    if uv.shape[0] == 0 or bin_m <= 0.0 or not bool(unexplained.any()):
+        return out
+    pts = uv[unexplained]
+    keys = np.floor(pts / bin_m).astype(np.int64)
+    _, inv, counts = np.unique(keys, axis=0, return_inverse=True, return_counts=True)
+    dense = counts[inv] >= min_cells
+    idx = np.flatnonzero(unexplained)
+    out[idx[dense]] = True
+    return out
+
+
 def _extent_world(cells: NDArray[np.float64]) -> dict[str, list[float]] | None:
     """Bounding extents (m) of world-XZ cells."""
     if cells.shape[0] == 0:
@@ -510,6 +538,25 @@ def _unknown_out(idx: int, pc: WallPiece, theta: float) -> dict:
     a_w, b_w = _world_endpoints(pc, theta)
     return {
         "id": f"unknown_{idx + 1}",
+        "axis": AXES[pc.axis],
+        "offset_m": round(pc.offset, 4),
+        "start_m": round(pc.start, 4),
+        "end_m": round(pc.end, 4),
+        "length_m": round(pc.length, 4),
+        "rule": pc.rule,
+        "endpoints_world": {
+            "a": [round(a_w[0], 4), round(a_w[1], 4)],
+            "b": [round(b_w[0], 4), round(b_w[1], 4)],
+        },
+    }
+
+
+def _open_space_out(idx: int, pc: WallPiece, theta: float) -> dict:
+    """Serialise a wide camera-crossed gap (open_space, not an opening)."""
+    a_w, b_w = _world_endpoints(pc, theta)
+    return {
+        "id": f"open_space_{idx + 1}",
+        "kind": KIND_OPEN_SPACE,
         "axis": AXES[pc.axis],
         "offset_m": round(pc.offset, 4),
         "start_m": round(pc.start, 4),
@@ -652,19 +699,44 @@ def reconstruct_walls(
     segments_out: list[dict[str, object]] = []
     junctions: list[dict[str, object]] = []
     openings_out: list[dict[str, object]] = []
+    open_spaces_out: list[dict[str, object]] = []
     unknown_out: list[dict[str, object]] = []
     graph_out: dict[str, object] = {}
+    node_counts: dict[str, int] = {}
     completion_counts: dict[str, int] = {
         "bridged_occluded": 0,
         "bridged_dropout": 0,
         "extended": 0,
         "openings": 0,
+        "open_spaces": 0,
         "unknown_gaps": 0,
+    }
+    lengths: dict[str, object] = {
+        "observed_length_m": 0.0,
+        "inferred_length_m": 0.0,
+        "longest_inferred_run_m": 0.0,
+        "max_extend_m": cfg.outline.max_extend_m,
+        "inferred_runs_over_max_extend": 0,
+    }
+    merge_report: dict[str, object] = {
+        "segments_before": 0,
+        "segments_after": 0,
+        "thick_walls": 0,
+        "nodes_before": 0,
+        "nodes_after": 0,
+        "crosses_before": 0,
+        "crosses_after": 0,
     }
     total = int(all_xz.shape[0])
     n_kept = int(kept.shape[0])
     evidence: dict[str, object] = {
         "cells_total": total,
+        "wall_like_explained": 0,
+        "dense_blobs": 0,
+        "residual_noise": total,
+        "wall_like_frac": 0.0,
+        "dense_blob_frac": 0.0,
+        "residual_noise_frac": 0.0,
         "cells_explained": 0,
         "cells_unexplained": total,
         "evidence_explained": 0.0,
@@ -692,12 +764,23 @@ def reconstruct_walls(
             [_segment_to_piece(s) for s in segs], occ_uv, cam_uv, cparams
         )
 
-        # evidence_explained uses the OBSERVED fitted segments only (inferred bridges
-        # / extensions cover gaps and do not "explain" observed cells).
+        # evidence split (item 4): wall_like (near observed segments) vs dense blobs
+        # (furniture/occluder) vs residual noise (sparse speckle).
         expl = int(observed_mask.sum())
         kept_expl = int(explained_mask(uv_kept, segs, p.evidence_tol_m).sum())
+        blob_mask = dense_blob_mask(
+            uv_all, ~observed_mask, cfg.outline.blob_bin_m, cfg.outline.blob_min_cells
+        )
+        n_blob = int(blob_mask.sum())
+        n_resid = int((~observed_mask).sum()) - n_blob
         evidence = {
             "cells_total": total,
+            "wall_like_explained": expl,
+            "dense_blobs": n_blob,
+            "residual_noise": n_resid,
+            "wall_like_frac": round(expl / total, 4) if total else 0.0,
+            "dense_blob_frac": round(n_blob / total, 4) if total else 0.0,
+            "residual_noise_frac": round(n_resid / total, 4) if total else 0.0,
             "cells_explained": expl,
             "cells_unexplained": total - expl,
             "evidence_explained": round(expl / total, 4) if total else 0.0,
@@ -705,19 +788,58 @@ def reconstruct_walls(
             "cells_kept_explained": kept_expl,
             "evidence_explained_kept": round(kept_expl / n_kept, 4) if n_kept else 0.0,
         }
-        completed = [_piece_to_segment(pc) for pc in comp.walls]
+
+        # length accounting (item 3) - on the PRE-merge pieces so observed and inferred
+        # lengths keep their own provenance.
+        inferred = [w for w in comp.walls if w.provenance != "observed"]
+        obs_len = sum(w.length for w in comp.walls if w.provenance == "observed")
+        inf_len = sum(w.length for w in inferred)
+        longest_inf = max((w.length for w in inferred), default=0.0)
+        over = [w for w in inferred if w.length > cparams.max_extend_m]
+        lengths = {
+            "observed_length_m": round(obs_len, 4),
+            "inferred_length_m": round(inf_len, 4),
+            "longest_inferred_run_m": round(longest_inf, 4),
+            "max_extend_m": cparams.max_extend_m,
+            "inferred_runs_over_max_extend": len(over),
+        }
+        if over:
+            warnings.append(
+                f"{len(over)} inferred run(s) exceed max_extend_m {cparams.max_extend_m} "
+                f"(longest {longest_inf:.2f} m) - flagged"
+            )
+
+        # merge parallel same-axis pieces into one wall (item 1); build the graph on the
+        # merged walls and also on the unmerged set to witness the cross drop (item 5).
+        merged = merge_wall_pieces(comp.walls, cparams)
+        gparams = graph_params_from_config(cfg)
+        graph_before = build_wall_graph(comp.walls, cam_uv, gparams)
+        wall_graph = build_wall_graph(merged, cam_uv, gparams)
+        graph_out = _graph_out(wall_graph, theta)
+        node_counts = dict(wall_graph.counts)
+        merge_report = {
+            "segments_before": len(comp.walls),
+            "segments_after": len(merged),
+            "thick_walls": sum(1 for w in merged if w.thickness > 0.0),
+            "nodes_before": sum(graph_before.counts.values()),
+            "nodes_after": sum(wall_graph.counts.values()),
+            "crosses_before": graph_before.counts.get("cross", 0),
+            "crosses_after": wall_graph.counts.get("cross", 0),
+        }
+
+        completed = [_piece_to_segment(pc) for pc in merged]
         segments_out = [_segment_out(i, s, theta, cfg, tier) for i, s in enumerate(completed)]
         openings_out = [_opening_out(i, pc, theta, cfg, tier) for i, pc in enumerate(comp.openings)]
+        open_spaces_out = [_open_space_out(i, pc, theta) for i, pc in enumerate(comp.open_spaces)]
         unknown_out = [_unknown_out(i, pc, theta) for i, pc in enumerate(comp.unknown_gaps)]
         completion_counts = {
             "bridged_occluded": sum(1 for w in comp.walls if w.provenance == "inferred_occluded"),
             "bridged_dropout": sum(1 for w in comp.walls if w.provenance == "inferred_dropout"),
             "extended": sum(1 for w in comp.walls if w.provenance == EXTENSION),
             "openings": len(comp.openings),
+            "open_spaces": len(comp.open_spaces),
             "unknown_gaps": len(comp.unknown_gaps),
         }
-        wall_graph = build_wall_graph(comp.walls, cam_uv, graph_params_from_config(cfg))
-        graph_out = _graph_out(wall_graph, theta)
         if not segs:
             warnings.append("no wall segments found")
         elif n_kept and float(evidence["evidence_explained_kept"]) < LOW_EXPLAINED_FRAC:
@@ -728,6 +850,14 @@ def reconstruct_walls(
         if completion_counts["unknown_gaps"]:
             warnings.append(
                 f"{completion_counts['unknown_gaps']} evidence-free gap(s) left open (flagged)"
+            )
+        cb = int(merge_report["crosses_before"])
+        ca = int(merge_report["crosses_after"])
+        if ca and ca >= cb:
+            warnings.append(
+                f"{ca} cross junction(s) remain after merge (was {cb}); they are genuine "
+                "4-way meetings of interior walls - near-parallel lines closer than "
+                f"merge_tol_m {cfg.outline.merge_tol_m} m would otherwise merge"
             )
 
     return {
@@ -747,6 +877,12 @@ def reconstruct_walls(
             "max_extend_m": cfg.outline.max_extend_m,
             "ci_base_m": cfg.outline.ci_base_m,
             "ci_per_m": cfg.outline.ci_per_m,
+            "open_min_m": cfg.outline.open_min_m,
+            "open_max_m": cfg.outline.open_max_m,
+            "node_tol_m": cfg.outline.node_tol_m,
+            "node_merge_m": cfg.outline.node_merge_m,
+            "blob_bin_m": cfg.outline.blob_bin_m,
+            "blob_min_cells": cfg.outline.blob_min_cells,
         },
         "manhattan_angle_deg": round(math.degrees(theta), 3),
         "cells": cells,
@@ -757,8 +893,12 @@ def reconstruct_walls(
         "junctions": junctions,
         "completion": completion_counts,
         "openings": openings_out,
+        "open_spaces": open_spaces_out,
         "unknown_gaps": unknown_out,
+        "lengths": lengths,
+        "merge": merge_report,
         "graph": graph_out,
+        "node_counts": node_counts,
         "evidence": evidence,
         "extent_world": _extent_world(kept),
         "camera_start": stage1.get("camera_start"),

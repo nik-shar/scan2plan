@@ -76,6 +76,10 @@
         "perp_tol_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.1 },
         "ci_base_m": { "type": "number", "minimum": 0, "default": 0.03 },
         "ci_per_m": { "type": "number", "minimum": 0, "default": 0.15 },
+        "open_min_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.5 },
+        "open_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 2.5 },
+        "blob_bin_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.1 },
+        "blob_min_cells": { "type": "integer", "minimum": 1, "default": 6 },
         "node_tol_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.05 },
         "node_merge_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.1 },
         "furniture_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
@@ -94,7 +98,20 @@
         "odometry_ci_frac": { "type": "number", "minimum": 0, "default": 0.01 },
         "weak_coverage_frac": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 0.5 },
         "occluded_ci_scale": { "type": "number", "minimum": 1, "default": 2.0 },
-        "bootstrap_n": { "type": "integer", "minimum": 0, "default": 200 }
+        "bootstrap_n": { "type": "integer", "minimum": 0, "default": 200 },
+        "closure_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 2.5 },
+        "closure_wall_tol_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.05 },
+        "closure_bonus_m": { "type": "number", "minimum": 0, "default": 1.0 },
+        "closure_floor_penalty": { "type": "number", "minimum": 0, "default": 1.0 },
+        "waist_min_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.6 },
+        "waist_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 2.5 },
+        "room_grid_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.02 },
+        "room_min_area_m2": { "type": "number", "exclusiveMinimum": 0, "default": 0.5 },
+        "mc_samples": { "type": "integer", "minimum": 0, "default": 500 },
+        "ceiling_min_above_floor_m": { "type": "number", "exclusiveMinimum": 0, "default": 2.0 },
+        "ceiling_bin_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.02 },
+        "ceiling_prior_low_m": { "type": "number", "exclusiveMinimum": 0, "default": 2.4 },
+        "ceiling_prior_high_m": { "type": "number", "exclusiveMinimum": 0, "default": 2.7 }
       }
     }
   }

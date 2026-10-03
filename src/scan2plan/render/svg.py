@@ -15,7 +15,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-from scan2plan.geometry.walls import explained_mask, rotate_xz, segments_from_payload
+from scan2plan.geometry.walls import (
+    dense_blob_mask,
+    explained_mask,
+    rotate_xz,
+    segments_from_payload,
+)
 
 
 def _esc(text: str) -> str:
@@ -203,19 +208,30 @@ def render_walls_svg(
         if cells
         else np.empty((0, 2), dtype=np.float64)
     )
+    uv = rotate_xz(cell_xz, theta) if cells else cell_xz
     explained = (
-        explained_mask(rotate_xz(cell_xz, theta), segments_from_payload(stage2), tol).tolist()
+        explained_mask(uv, segments_from_payload(stage2), tol) if cells else np.zeros(0, dtype=bool)
+    )
+    dense = (
+        dense_blob_mask(
+            uv,
+            ~explained,
+            float(params.get("blob_bin_m", 0.10)),
+            int(params.get("blob_min_cells", 6)),
+        )
         if cells
-        else []
+        else np.zeros(0, dtype=bool)
     )
     cell_px = max(1.0, float(params.get("cell_m", 0.02)) * px_per_m)
-    for c, seen in zip(cells, explained, strict=True):
-        support = int(c.get("support", 1))
+    for c, seen, blob in zip(cells, explained, dense, strict=True):
         if seen:
+            support = int(c.get("support", 1))
             shade = max(80, 210 - 14 * support)
-            colour = (shade, shade, shade)
+            colour = (shade, shade, shade)  # wall-like (explained)
+        elif blob:
+            colour = (214, 124, 40)  # dense blob (furniture / occluder)
         else:
-            colour = (219, 68, 55)  # unexplained wall cell -> red
+            colour = (232, 168, 160)  # residual noise
         sq(float(c["x"]), float(c["z"]), cell_px, colour)
     for s in segs:
         ep = s.get("endpoints_world")
@@ -252,6 +268,17 @@ def render_walls_svg(
                 fill=(150, 60, 200),  # unresolved evidence-free gaps (flagged)
                 width=3,
             )
+    for u in stage2.get("open_spaces", []) or []:
+        ep = u.get("endpoints_world")
+        if ep:
+            draw.line(
+                [
+                    pix(float(ep["a"][0]), float(ep["a"][1])),
+                    pix(float(ep["b"][0]), float(ep["b"][1])),
+                ],
+                fill=(0, 150, 180),  # wide camera-crossed gap (open space, walk-through)
+                width=4,
+            )
     g = stage2.get("graph", {})
     for node in g.get("nodes", []) or []:
         w = node.get("world")
@@ -285,21 +312,34 @@ def render_walls_svg(
 
     ev = stage2.get("evidence", {})
     comp = stage2.get("completion", {})
+    ln = stage2.get("lengths", {})
+    mr = stage2.get("merge", {})
+    nc = stage2.get("node_counts", {}) or g.get("counts", {})
     legend = [
         f"wall segments: {stage2.get('wall_count')} "
         f"(observed {stage2.get('observed_count')}, inferred {stage2.get('inferred_count')})",
+        f"length: observed {ln.get('observed_length_m')} m, "
+        f"inferred {ln.get('inferred_length_m')} m | longest inferred run "
+        f"{ln.get('longest_inferred_run_m')} m (> max_extend "
+        f"{ln.get('inferred_runs_over_max_extend')})",
+        f"evidence: wall_like {ev.get('wall_like_explained')} ({ev.get('wall_like_frac')}), "
+        f"dense_blobs {ev.get('dense_blobs')} ({ev.get('dense_blob_frac')}), "
+        f"residual_noise {ev.get('residual_noise')} ({ev.get('residual_noise_frac')})",
         f"evidence_explained: {ev.get('evidence_explained')} "
         f"(kept {ev.get('evidence_explained_kept')})",
-        f"unexplained wall cells: {ev.get('cells_unexplained')} (red)",
-        f"openings: {len(stage2.get('openings') or [])} (green) | "
+        f"openings: {len(stage2.get('openings') or [])} (green, 0.5-2.5 m) | "
+        f"open_space: {len(stage2.get('open_spaces') or [])} (teal, >2.5 m) | "
         f"unknown gaps: {len(stage2.get('unknown_gaps') or [])} (purple)",
         f"completion: occluded {comp.get('bridged_occluded')}, "
         f"dropout {comp.get('bridged_dropout')}, extended {comp.get('extended')}",
-        f"nodes: L {g.get('counts', {}).get('L')} o, T {g.get('counts', {}).get('T')} [] , "
-        f"cross {g.get('counts', {}).get('cross')} <> , "
-        f"dangling {len(g.get('dangling_ends') or [])} red ring",
+        "cells: wall_like grey | dense blob orange | residual noise pale red",
+        f"merge: walls {mr.get('segments_before')}->{mr.get('segments_after')} "
+        f"({mr.get('thick_walls')} thick) | nodes {mr.get('nodes_before')}->"
+        f"{mr.get('nodes_after')}",
+        f"nodes: L {nc.get('L')} o, T {nc.get('T')} [], cross {nc.get('cross')} <> "
+        f"(was {mr.get('crosses_before')}), dangling {len(g.get('dangling_ends') or [])} red ring",
         f"angle {stage2.get('manhattan_angle_deg')} deg | min run {params.get('min_run_m')} m "
-        f"| tol {tol} m",
+        f"| merge tol {params.get('merge_tol_m')} m | node merge {params.get('node_merge_m')} m",
         "camera start (green) / end (red)",
     ]
 

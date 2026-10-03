@@ -62,6 +62,16 @@ class Outline(BaseModel):
     perp_tol_m: float = Field(default=0.10, gt=0.0)
     ci_base_m: float = Field(default=0.03, ge=0.0)
     ci_per_m: float = Field(default=0.15, ge=0.0)
+    # Opening-width cap (stage 2): a camera-crossed gap outside this range is not a
+    # door - narrower than ``open_min_m`` is a dropout, wider than ``open_max_m`` is
+    # an ``open_space`` (a walk-through, not an opening).
+    open_min_m: float = Field(default=0.50, gt=0.0)
+    open_max_m: float = Field(default=2.50, gt=0.0)
+    # Evidence split (stage 2): an unexplained-cell bin with at least this many cells
+    # (on a ``blob_bin_m`` grid) is a dense blob (furniture/occluder); the rest is
+    # residual noise.
+    blob_bin_m: float = Field(default=0.10, gt=0.0)
+    blob_min_cells: int = Field(default=6, ge=1)
     # Wall graph (stage 2): nodes + edges after completion.
     node_tol_m: float = Field(default=0.05, gt=0.0)
     node_merge_m: float = Field(default=0.10, gt=0.0)
@@ -86,6 +96,22 @@ class Outline(BaseModel):
     weak_coverage_frac: float = Field(default=0.5, gt=0.0, le=1.0)
     occluded_ci_scale: float = Field(default=2.0, ge=1.0)
     bootstrap_n: int = Field(default=200, ge=0)
+    # --- Stage 3: rooms, closed polygons, per-room measurements (plan 04c/04h). ---
+    # NOTE: these are UNCALIBRATED constants (to be calibrated by plan 04f / 08); they
+    # are recorded in every stage-3 payload so a number can be traced to its threshold.
+    closure_max_m: float = Field(default=2.50, gt=0.0)  # longest accepted closure run
+    closure_wall_tol_m: float = Field(default=0.05, gt=0.0)  # faint wall cells within this
+    closure_bonus_m: float = Field(default=1.00, ge=0.0)  # cost removed per metre supported
+    closure_floor_penalty: float = Field(default=1.00, ge=0.0)  # cost added per metre on floor
+    waist_min_m: float = Field(default=0.60, gt=0.0)  # narrowest doorway-shaped waist
+    waist_max_m: float = Field(default=2.50, gt=0.0)  # widest doorway-shaped waist
+    room_grid_m: float = Field(default=0.02, gt=0.0)  # region raster grid (2 cm)
+    room_min_area_m2: float = Field(default=0.50, gt=0.0)  # drop tiny regions
+    mc_samples: int = Field(default=500, ge=0)  # Monte-Carlo interval draws
+    ceiling_min_above_floor_m: float = Field(default=2.00, gt=0.0)  # ignore low planes
+    ceiling_bin_m: float = Field(default=0.02, gt=0.0)  # ceiling histogram bin
+    ceiling_prior_low_m: float = Field(default=2.40, gt=0.0)  # prior interval (no ceiling)
+    ceiling_prior_high_m: float = Field(default=2.70, gt=0.0)  # prior interval (no ceiling)
 
 
 class Config(BaseModel):

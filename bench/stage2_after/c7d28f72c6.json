@@ -19,7 +19,8 @@
     "bridged_dropout": 0,
     "bridged_occluded": 4,
     "extended": 10,
-    "openings": 1,
+    "open_spaces": 1,
+    "openings": 0,
     "unknown_gaps": 0
   },
   "evidence": {
@@ -28,8 +29,14 @@
     "cells_kept_explained": 5807,
     "cells_total": 50835,
     "cells_unexplained": 42400,
+    "dense_blob_frac": 0.7276,
+    "dense_blobs": 36989,
     "evidence_explained": 0.1659,
-    "evidence_explained_kept": 0.4038
+    "evidence_explained_kept": 0.4038,
+    "residual_noise": 5411,
+    "residual_noise_frac": 0.1064,
+    "wall_like_explained": 8435,
+    "wall_like_frac": 0.1659
   },
   "extent_world": {
     "x_m": [
@@ -65,12 +72,12 @@
         "node_id": "n7",
         "reason": "open_end",
         "uv": [
-          -0.7125,
+          -0.7144,
           -4.4203
         ],
         "world": [
-          1.483,
-          -4.2246
+          1.4814,
+          -4.2255
         ]
       },
       {
@@ -249,30 +256,30 @@
         "id": "e1",
         "length_m": 3.3536,
         "node_a": "n7",
-        "node_b": "n10",
+        "node_b": "n9",
         "provenance": "observed"
       },
       {
         "ci_m": 0.1558,
         "id": "e2",
         "length_m": 3.0857,
-        "node_a": "n10",
-        "node_b": "n8",
+        "node_a": "n9",
+        "node_b": "n10",
         "provenance": "observed"
       },
       {
         "ci_m": 0.1558,
         "id": "e3",
         "length_m": 0.8385,
-        "node_a": "n8",
-        "node_b": "n9",
+        "node_a": "n10",
+        "node_b": "n8",
         "provenance": "observed"
       },
       {
         "ci_m": 0.3225,
         "id": "e4",
         "length_m": 2.1105,
-        "node_a": "n9",
+        "node_a": "n8",
         "node_b": "n4",
         "provenance": "observed"
       },
@@ -520,7 +527,7 @@
         "ci_m": 0.1,
         "id": "e35",
         "length_m": 2.9865,
-        "node_a": "n10",
+        "node_a": "n9",
         "node_b": "n29",
         "provenance": "inferred_extension"
       },
@@ -557,26 +564,26 @@
         "provenance": "observed"
       },
       {
-        "ci_m": 0.039,
+        "ci_m": 0.0,
         "id": "e40",
-        "length_m": 1.8598,
-        "node_a": "n8",
+        "length_m": 1.8443,
+        "node_a": "n10",
         "node_b": "n18",
-        "provenance": "inferred_extension"
+        "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e41",
-        "length_m": 1.4685,
+        "length_m": 1.4698,
         "node_a": "n1",
-        "node_b": "n9",
+        "node_b": "n8",
         "provenance": "observed"
       },
       {
         "ci_m": 0.0,
         "id": "e42",
-        "length_m": 1.8598,
-        "node_a": "n9",
+        "length_m": 1.8585,
+        "node_a": "n8",
         "node_b": "n19",
         "provenance": "observed"
       },
@@ -826,42 +833,29 @@
         "inferred": false,
         "type": "dangling_end",
         "uv": [
-          -0.7125,
+          -0.7144,
           -4.4203
         ],
         "world": [
-          1.483,
-          -4.2246
+          1.4814,
+          -4.2255
         ]
       },
       {
         "id": "n8",
         "inferred": false,
-        "type": "T",
+        "type": "cross",
         "uv": [
-          -0.7038,
-          2.019
+          -0.7025,
+          2.8575
         ],
         "world": [
-          -1.5819,
-          1.4385
+          -1.9809,
+          2.176
         ]
       },
       {
         "id": "n9",
-        "inferred": false,
-        "type": "cross",
-        "uv": [
-          -0.7038,
-          2.8575
-        ],
-        "world": [
-          -1.982,
-          2.1754
-        ]
-      },
-      {
-        "id": "n10",
         "inferred": false,
         "type": "T",
         "uv": [
@@ -871,6 +865,19 @@
         "world": [
           -0.1003,
           -1.2682
+        ]
+      },
+      {
+        "id": "n10",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          -0.6883,
+          2.019
+        ],
+        "world": [
+          -1.5683,
+          1.4459
         ]
       },
       {
@@ -1421,7 +1428,7 @@
       }
     ]
   },
-  "inferred_count": 14,
+  "inferred_count": 12,
   "junctions": [
     {
       "axis": "u",
@@ -1680,10 +1687,32 @@
       "to_axis": "u"
     }
   ],
+  "lengths": {
+    "inferred_length_m": 24.6497,
+    "inferred_runs_over_max_extend": 6,
+    "longest_inferred_run_m": 4.667,
+    "max_extend_m": 1.0,
+    "observed_length_m": 64.4635
+  },
   "manhattan_angle_deg": 28.5,
+  "merge": {
+    "crosses_after": 6,
+    "crosses_before": 6,
+    "nodes_after": 52,
+    "nodes_before": 52,
+    "segments_after": 39,
+    "segments_before": 41,
+    "thick_walls": 11
+  },
   "name": "wall segments",
+  "node_counts": {
+    "L": 6,
+    "T": 24,
+    "cross": 6,
+    "dangling_end": 16
+  },
   "observed_count": 27,
-  "openings": [
+  "open_spaces": [
     {
       "axis": "v",
       "end_m": 7.7277,
@@ -1697,26 +1726,18 @@
           6.216
         ]
       },
-      "id": "open_1",
-      "kind": "door",
+      "id": "open_space_1",
+      "kind": "open_space",
+      "length_m": 6.5717,
       "offset_m": 2.8774,
-      "rule": "camera_path_crosses_gap",
-      "start_m": 1.156,
-      "width": {
-        "ci_high": 6.6374,
-        "ci_low": 6.506,
-        "id": "open_1.width",
-        "kind": "opening_width",
-        "method": "camera_path_cross",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 6.5717
-      }
+      "rule": "camera_crossed_wide_gap",
+      "start_m": 1.156
     }
   ],
+  "openings": [],
   "params": {
+    "blob_bin_m": 0.1,
+    "blob_min_cells": 6,
     "cell_m": 0.02,
     "ci_base_m": 0.03,
     "ci_per_m": 0.15,
@@ -1729,6 +1750,10 @@
     "min_height_bins": 4,
     "min_peak_frac": 0.15,
     "min_run_m": 1.2,
+    "node_merge_m": 0.1,
+    "node_tol_m": 0.05,
+    "open_max_m": 2.5,
+    "open_min_m": 0.5,
     "peak_smooth": 5,
     "run_gap_m": 0.1
   },
@@ -1774,45 +1799,6 @@
     },
     {
       "axis": "u",
-      "ci_m": 0.1558,
-      "coverage": 0.0,
-      "end_m": 2.8575,
-      "endpoints_world": {
-        "a": [
-          -1.6057,
-          1.4256
-        ],
-        "b": [
-          -2.0058,
-          2.1625
-        ]
-      },
-      "extension_m": 0.8385,
-      "id": "wall_2",
-      "inferred": true,
-      "length": {
-        "ci_high": 0.9943,
-        "ci_low": 0.6827,
-        "id": "wall_2.length",
-        "kind": "wall_length",
-        "method": "wall_segment",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 0.8385
-      },
-      "merged_from": 1,
-      "offset_m": -0.7309,
-      "peak_strength": 0.0,
-      "provenance": "inferred_extension",
-      "rule": "dangling_end_meets_wall",
-      "start_m": 2.019,
-      "support": 0,
-      "thickness_m": 0.0
-    },
-    {
-      "axis": "u",
       "ci_m": 0.0,
       "coverage": 1.0,
       "end_m": 4.5797,
@@ -1827,12 +1813,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_3",
+      "id": "wall_2",
       "inferred": false,
       "length": {
         "ci_high": 1.7394,
         "ci_low": 1.7049,
-        "id": "wall_3.length",
+        "id": "wall_2.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1866,12 +1852,12 @@
         ]
       },
       "extension_m": 0.0628,
-      "id": "wall_4",
+      "id": "wall_3",
       "inferred": true,
       "length": {
         "ci_high": 2.5022,
         "ci_low": 2.4234,
-        "id": "wall_4.length",
+        "id": "wall_3.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1905,12 +1891,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_5",
+      "id": "wall_4",
       "inferred": true,
       "length": {
         "ci_high": 0.95,
         "ci_low": 0.65,
-        "id": "wall_5.length",
+        "id": "wall_4.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -1930,45 +1916,6 @@
     },
     {
       "axis": "u",
-      "ci_m": 0.1558,
-      "coverage": 0.0,
-      "end_m": 2.8575,
-      "endpoints_world": {
-        "a": [
-          -1.5925,
-          1.4328
-        ],
-        "b": [
-          -1.9926,
-          2.1697
-        ]
-      },
-      "extension_m": 0.0,
-      "id": "wall_6",
-      "inferred": true,
-      "length": {
-        "ci_high": 0.9943,
-        "ci_low": 0.6827,
-        "id": "wall_6.length",
-        "kind": "wall_length",
-        "method": "wall_segment",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 0.8385
-      },
-      "merged_from": 1,
-      "offset_m": -0.7159,
-      "peak_strength": 0.0,
-      "provenance": "inferred_occluded",
-      "rule": "furniture_in_front_of_gap",
-      "start_m": 2.019,
-      "support": 0,
-      "thickness_m": 0.0
-    },
-    {
-      "axis": "u",
       "ci_m": 0.3225,
       "coverage": 0.0,
       "end_m": 6.5297,
@@ -1983,12 +1930,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_7",
+      "id": "wall_5",
       "inferred": true,
       "length": {
         "ci_high": 2.2725,
         "ci_low": 1.6275,
-        "id": "wall_7.length",
+        "id": "wall_5.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2008,6 +1955,45 @@
     },
     {
       "axis": "u",
+      "ci_m": 0.1558,
+      "coverage": 0.0,
+      "end_m": 2.8575,
+      "endpoints_world": {
+        "a": [
+          -1.5837,
+          1.4376
+        ],
+        "b": [
+          -1.9838,
+          2.1744
+        ]
+      },
+      "extension_m": 0.8385,
+      "id": "wall_6",
+      "inferred": true,
+      "length": {
+        "ci_high": 0.9943,
+        "ci_low": 0.6827,
+        "id": "wall_6.length",
+        "kind": "wall_length",
+        "method": "wall_segment",
+        "nominal": 0.9,
+        "sources": [],
+        "tier": "lidar",
+        "unit": "m",
+        "value": 0.8385
+      },
+      "merged_from": 3,
+      "offset_m": -0.7058,
+      "peak_strength": 0.0,
+      "provenance": "inferred_extension",
+      "rule": "dangling_end_meets_wall",
+      "start_m": 2.019,
+      "support": 0,
+      "thickness_m": 0.0601
+    },
+    {
+      "axis": "u",
       "ci_m": 0.0,
       "coverage": 0.9562,
       "end_m": 2.019,
@@ -2022,12 +2008,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_8",
+      "id": "wall_7",
       "inferred": false,
       "length": {
         "ci_high": 3.2717,
         "ci_low": 3.207,
-        "id": "wall_8.length",
+        "id": "wall_7.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2047,45 +2033,6 @@
     },
     {
       "axis": "u",
-      "ci_m": 0.1558,
-      "coverage": 0.0,
-      "end_m": 2.8575,
-      "endpoints_world": {
-        "a": [
-          -1.5529,
-          1.4543
-        ],
-        "b": [
-          -1.953,
-          2.1912
-        ]
-      },
-      "extension_m": 0.8385,
-      "id": "wall_9",
-      "inferred": true,
-      "length": {
-        "ci_high": 0.9943,
-        "ci_low": 0.6827,
-        "id": "wall_9.length",
-        "kind": "wall_length",
-        "method": "wall_segment",
-        "nominal": 0.9,
-        "sources": [],
-        "tier": "lidar",
-        "unit": "m",
-        "value": 0.8385
-      },
-      "merged_from": 1,
-      "offset_m": -0.6708,
-      "peak_strength": 0.0,
-      "provenance": "inferred_extension",
-      "rule": "dangling_end_meets_wall",
-      "start_m": 2.019,
-      "support": 0,
-      "thickness_m": 0.0
-    },
-    {
-      "axis": "u",
       "ci_m": 0.1566,
       "coverage": 0.0,
       "end_m": 6.396,
@@ -2100,12 +2047,12 @@
         ]
       },
       "extension_m": 0.8438,
-      "id": "wall_10",
+      "id": "wall_8",
       "inferred": true,
       "length": {
         "ci_high": 1.0004,
         "ci_low": 0.6872,
-        "id": "wall_10.length",
+        "id": "wall_8.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2139,12 +2086,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_11",
+      "id": "wall_9",
       "inferred": false,
       "length": {
         "ci_high": 1.4645,
         "ci_low": 1.4355,
-        "id": "wall_11.length",
+        "id": "wall_9.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2178,12 +2125,12 @@
         ]
       },
       "extension_m": 0.7983,
-      "id": "wall_12",
+      "id": "wall_10",
       "inferred": true,
       "length": {
         "ci_high": 0.9481,
         "ci_low": 0.6486,
-        "id": "wall_12.length",
+        "id": "wall_10.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2217,12 +2164,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_13",
+      "id": "wall_11",
       "inferred": false,
       "length": {
         "ci_high": 3.8922,
         "ci_low": 3.8151,
-        "id": "wall_13.length",
+        "id": "wall_11.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2256,12 +2203,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_14",
+      "id": "wall_12",
       "inferred": false,
       "length": {
         "ci_high": 1.4035,
         "ci_low": 1.3757,
-        "id": "wall_14.length",
+        "id": "wall_12.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2295,12 +2242,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_15",
+      "id": "wall_13",
       "inferred": false,
       "length": {
         "ci_high": 2.121,
         "ci_low": 2.079,
-        "id": "wall_15.length",
+        "id": "wall_13.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2334,12 +2281,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_16",
+      "id": "wall_14",
       "inferred": true,
       "length": {
         "ci_high": 2.3867,
         "ci_low": 1.7119,
-        "id": "wall_16.length",
+        "id": "wall_14.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2373,12 +2320,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_17",
+      "id": "wall_15",
       "inferred": false,
       "length": {
         "ci_high": 5.0311,
         "ci_low": 4.9315,
-        "id": "wall_17.length",
+        "id": "wall_15.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2412,12 +2359,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_18",
+      "id": "wall_16",
       "inferred": false,
       "length": {
         "ci_high": 4.726,
         "ci_low": 4.6324,
-        "id": "wall_18.length",
+        "id": "wall_16.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2451,12 +2398,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_19",
+      "id": "wall_17",
       "inferred": false,
       "length": {
         "ci_high": 4.9097,
         "ci_low": 4.8125,
-        "id": "wall_19.length",
+        "id": "wall_17.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2490,12 +2437,12 @@
         ]
       },
       "extension_m": 0.7344,
-      "id": "wall_20",
+      "id": "wall_18",
       "inferred": true,
       "length": {
         "ci_high": 0.8746,
         "ci_low": 0.5942,
-        "id": "wall_20.length",
+        "id": "wall_18.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2529,12 +2476,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_21",
+      "id": "wall_19",
       "inferred": false,
       "length": {
         "ci_high": 2.02,
         "ci_low": 1.98,
-        "id": "wall_21.length",
+        "id": "wall_19.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2568,12 +2515,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_22",
+      "id": "wall_20",
       "inferred": false,
       "length": {
         "ci_high": 1.313,
         "ci_low": 1.287,
-        "id": "wall_22.length",
+        "id": "wall_20.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2607,12 +2554,12 @@
         ]
       },
       "extension_m": 0.017,
-      "id": "wall_23",
+      "id": "wall_21",
       "inferred": true,
       "length": {
         "ci_high": 4.7137,
         "ci_low": 4.6204,
-        "id": "wall_23.length",
+        "id": "wall_21.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2646,12 +2593,12 @@
         ]
       },
       "extension_m": 0.4219,
-      "id": "wall_24",
+      "id": "wall_22",
       "inferred": true,
       "length": {
         "ci_high": 0.5152,
         "ci_low": 0.3286,
-        "id": "wall_24.length",
+        "id": "wall_22.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2685,12 +2632,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_25",
+      "id": "wall_23",
       "inferred": false,
       "length": {
         "ci_high": 2.5794,
         "ci_low": 2.5283,
-        "id": "wall_25.length",
+        "id": "wall_23.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2724,12 +2671,12 @@
         ]
       },
       "extension_m": 0.0019,
-      "id": "wall_26",
+      "id": "wall_24",
       "inferred": true,
       "length": {
         "ci_high": 3.5156,
         "ci_low": 3.446,
-        "id": "wall_26.length",
+        "id": "wall_24.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2763,12 +2710,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_27",
+      "id": "wall_25",
       "inferred": false,
       "length": {
         "ci_high": 1.795,
         "ci_low": 1.7594,
-        "id": "wall_27.length",
+        "id": "wall_25.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2802,12 +2749,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_28",
+      "id": "wall_26",
       "inferred": false,
       "length": {
         "ci_high": 1.3258,
         "ci_low": 1.2996,
-        "id": "wall_28.length",
+        "id": "wall_26.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2841,12 +2788,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_29",
+      "id": "wall_27",
       "inferred": false,
       "length": {
         "ci_high": 1.845,
         "ci_low": 1.8085,
-        "id": "wall_29.length",
+        "id": "wall_27.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2880,12 +2827,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_30",
+      "id": "wall_28",
       "inferred": false,
       "length": {
         "ci_high": 3.3616,
         "ci_low": 3.295,
-        "id": "wall_30.length",
+        "id": "wall_28.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2919,12 +2866,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_31",
+      "id": "wall_29",
       "inferred": false,
       "length": {
         "ci_high": 1.1185,
         "ci_low": 1.0963,
-        "id": "wall_31.length",
+        "id": "wall_29.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2958,12 +2905,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_32",
+      "id": "wall_30",
       "inferred": false,
       "length": {
         "ci_high": 1.1022,
         "ci_low": 1.0804,
-        "id": "wall_32.length",
+        "id": "wall_30.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -2997,12 +2944,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_33",
+      "id": "wall_31",
       "inferred": false,
       "length": {
         "ci_high": 1.1605,
         "ci_low": 1.1375,
-        "id": "wall_33.length",
+        "id": "wall_31.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3036,12 +2983,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_34",
+      "id": "wall_32",
       "inferred": false,
       "length": {
         "ci_high": 1.255,
         "ci_low": 1.2302,
-        "id": "wall_34.length",
+        "id": "wall_32.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3075,12 +3022,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_35",
+      "id": "wall_33",
       "inferred": false,
       "length": {
         "ci_high": 3.5971,
         "ci_low": 3.5259,
-        "id": "wall_35.length",
+        "id": "wall_33.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3114,12 +3061,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_36",
+      "id": "wall_34",
       "inferred": false,
       "length": {
         "ci_high": 1.5085,
         "ci_low": 1.4786,
-        "id": "wall_36.length",
+        "id": "wall_34.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3153,12 +3100,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_37",
+      "id": "wall_35",
       "inferred": false,
       "length": {
         "ci_high": 2.4245,
         "ci_low": 2.3765,
-        "id": "wall_37.length",
+        "id": "wall_35.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3192,12 +3139,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_38",
+      "id": "wall_36",
       "inferred": false,
       "length": {
         "ci_high": 2.1947,
         "ci_low": 2.1512,
-        "id": "wall_38.length",
+        "id": "wall_36.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3231,12 +3178,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_39",
+      "id": "wall_37",
       "inferred": false,
       "length": {
         "ci_high": 2.6765,
         "ci_low": 2.6235,
-        "id": "wall_39.length",
+        "id": "wall_37.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3270,12 +3217,12 @@
         ]
       },
       "extension_m": 0.0,
-      "id": "wall_40",
+      "id": "wall_38",
       "inferred": false,
       "length": {
         "ci_high": 2.8479,
         "ci_low": 2.7915,
-        "id": "wall_40.length",
+        "id": "wall_38.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3309,12 +3256,12 @@
         ]
       },
       "extension_m": 0.0154,
-      "id": "wall_41",
+      "id": "wall_39",
       "inferred": true,
       "length": {
         "ci_high": 3.965,
         "ci_low": 3.8865,
-        "id": "wall_41.length",
+        "id": "wall_39.length",
         "kind": "wall_length",
         "method": "wall_segment",
         "nominal": 0.9,
@@ -3334,9 +3281,11 @@
     }
   ],
   "unknown_gaps": [],
-  "wall_count": 41,
+  "wall_count": 39,
   "warnings": [
     "stage1_layer_capped: wall cells were subsampled by stage 1",
-    "low evidence_explained_kept 40% (8573 of 14380 kept cells unexplained)"
+    "6 inferred run(s) exceed max_extend_m 1.0 (longest 4.67 m) - flagged",
+    "low evidence_explained_kept 40% (8573 of 14380 kept cells unexplained)",
+    "6 cross junction(s) remain after merge (was 6); they are genuine 4-way meetings of interior walls - near-parallel lines closer than merge_tol_m 0.25 m would otherwise merge"
   ]
 }

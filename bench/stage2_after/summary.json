@@ -5,11 +5,29 @@
       "angle": 22.5,
       "segments": 11,
       "openings": 0,
+      "open_spaces": 0,
       "unknown_gaps": 0,
+      "lengths": {
+        "inferred_length_m": 6.4762,
+        "inferred_runs_over_max_extend": 1,
+        "longest_inferred_run_m": 5.9762,
+        "max_extend_m": 1.0,
+        "observed_length_m": 16.9831
+      },
+      "merge": {
+        "crosses_after": 0,
+        "crosses_before": 0,
+        "nodes_after": 15,
+        "nodes_before": 15,
+        "segments_after": 11,
+        "segments_before": 11,
+        "thick_walls": 1
+      },
       "completion": {
-        "bridged_occluded": 1,
         "bridged_dropout": 0,
+        "bridged_occluded": 1,
         "extended": 1,
+        "open_spaces": 0,
         "openings": 0,
         "unknown_gaps": 0
       },
@@ -22,6 +40,11 @@
         "dangling_end": 10
       },
       "dangling_ends": 10,
+      "evidence_split": {
+        "wall_like_explained": 4624,
+        "dense_blobs": 16347,
+        "residual_noise": 1036
+      },
       "evidence_explained_before_rect": 0.1148,
       "evidence_explained": 0.2101,
       "evidence_explained_kept": 0.589,
@@ -31,25 +54,48 @@
     {
       "capture": "1a8384c3f6",
       "angle": 87.0,
-      "segments": 37,
-      "openings": 1,
+      "segments": 35,
+      "openings": 0,
+      "open_spaces": 1,
       "unknown_gaps": 0,
+      "lengths": {
+        "inferred_length_m": 25.1842,
+        "inferred_runs_over_max_extend": 11,
+        "longest_inferred_run_m": 4.51,
+        "max_extend_m": 1.0,
+        "observed_length_m": 49.0441
+      },
+      "merge": {
+        "crosses_after": 4,
+        "crosses_before": 4,
+        "nodes_after": 42,
+        "nodes_before": 42,
+        "segments_after": 35,
+        "segments_before": 37,
+        "thick_walls": 11
+      },
       "completion": {
-        "bridged_occluded": 4,
         "bridged_dropout": 0,
+        "bridged_occluded": 4,
         "extended": 12,
-        "openings": 1,
+        "open_spaces": 1,
+        "openings": 0,
         "unknown_gaps": 0
       },
-      "nodes": 44,
-      "edges": 44,
+      "nodes": 42,
+      "edges": 42,
       "node_counts": {
-        "L": 10,
+        "L": 8,
         "T": 11,
         "cross": 4,
         "dangling_end": 19
       },
       "dangling_ends": 19,
+      "evidence_split": {
+        "wall_like_explained": 5693,
+        "dense_blobs": 26923,
+        "residual_noise": 5628
+      },
       "evidence_explained_before_rect": 0.0513,
       "evidence_explained": 0.1489,
       "evidence_explained_kept": 0.3608,
@@ -59,14 +105,32 @@
     {
       "capture": "c7d28f72c6",
       "angle": 28.5,
-      "segments": 41,
-      "openings": 1,
+      "segments": 39,
+      "openings": 0,
+      "open_spaces": 1,
       "unknown_gaps": 0,
+      "lengths": {
+        "inferred_length_m": 24.6497,
+        "inferred_runs_over_max_extend": 6,
+        "longest_inferred_run_m": 4.667,
+        "max_extend_m": 1.0,
+        "observed_length_m": 64.4635
+      },
+      "merge": {
+        "crosses_after": 6,
+        "crosses_before": 6,
+        "nodes_after": 52,
+        "nodes_before": 52,
+        "segments_after": 39,
+        "segments_before": 41,
+        "thick_walls": 11
+      },
       "completion": {
-        "bridged_occluded": 4,
         "bridged_dropout": 0,
+        "bridged_occluded": 4,
         "extended": 10,
-        "openings": 1,
+        "open_spaces": 1,
+        "openings": 0,
         "unknown_gaps": 0
       },
       "nodes": 52,
@@ -78,6 +142,11 @@
         "dangling_end": 16
       },
       "dangling_ends": 16,
+      "evidence_split": {
+        "wall_like_explained": 8435,
+        "dense_blobs": 36989,
+        "residual_noise": 5411
+      },
       "evidence_explained_before_rect": 0.038,
       "evidence_explained": 0.1659,
       "evidence_explained_kept": 0.4038,

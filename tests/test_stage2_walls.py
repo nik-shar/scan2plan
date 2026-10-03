@@ -271,3 +271,40 @@ def test_cli_run_writes_segments_and_camera_markers(make_lidar_bundle, tmp_path:
     assert "segments" in data
     stage1 = json.loads((out_dir / cap.name / "stage1_observed.json").read_text())
     assert "camera_start" in stage1 and "camera_end" in stage1
+
+
+def test_stage2_exposes_cleanup_report_keys() -> None:
+    s2 = reconstruct_walls(_payload(), Config())
+    for key in ("open_spaces", "lengths", "merge", "node_counts", "evidence", "graph"):
+        assert key in s2
+    ev = s2["evidence"]
+    for key in ("wall_like_explained", "dense_blobs", "residual_noise"):
+        assert key in ev
+    # the three evidence classes partition every wall cell
+    assert ev["wall_like_explained"] + ev["dense_blobs"] + ev["residual_noise"] == ev["cells_total"]
+    ln = s2["lengths"]
+    assert ln["observed_length_m"] > 0.0
+    assert ln["inferred_runs_over_max_extend"] >= 0
+    mr = s2["merge"]
+    assert mr["segments_after"] <= mr["segments_before"]
+    assert set(s2["node_counts"]) == {"L", "T", "cross", "dangling_end"}
+
+
+def test_wide_camera_crossed_gap_becomes_open_space() -> None:
+    # a 5 m camera-crossed gap is wider than open_max_m (2.5 m) -> open_space, not a door
+    s2 = reconstruct_walls(_gap_payload(3.0, 8.0, cam_crosses=True), Config())
+    assert not s2["openings"]
+    assert len(s2["open_spaces"]) == 1
+    assert s2["open_spaces"][0]["rule"] == "camera_crossed_wide_gap"
+
+
+def test_clean_room_reports_no_dense_blobs() -> None:
+    s2 = reconstruct_walls(_payload(), Config())
+    ev = s2["evidence"]
+    assert ev["dense_blobs"] == 0 and ev["residual_noise"] == 0
+    assert ev["wall_like_frac"] == 1.0
+
+
+def test_merge_never_increases_wall_count() -> None:
+    s2 = reconstruct_walls(_payload(inner=True, merge_face=True, ghosts=10), Config())
+    assert s2["merge"]["segments_after"] <= s2["merge"]["segments_before"]
