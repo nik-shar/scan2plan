@@ -47,6 +47,34 @@
         "model": { "enum": ["conformal", "analytic"], "default": "conformal" },
         "nominal": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 0.9 }
       }
+    },
+    "outline": {
+      "description": "Three-stage room-outline thresholds (plan 04i). Every number that decides a measurement lives here.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confidence_min": { "type": "integer", "minimum": 0, "maximum": 2, "default": 1 },
+        "max_range_m": { "type": "number", "exclusiveMinimum": 0, "default": 8.0 },
+        "cell_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.02 },
+        "height_bins": { "type": "integer", "minimum": 1, "default": 10 },
+        "min_height_bins": { "type": "integer", "minimum": 1, "default": 4 },
+        "wall_min_m": { "type": "number", "minimum": 0, "default": 0.25 },
+        "wall_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.9 },
+        "peak_smooth": { "type": "integer", "minimum": 1, "default": 5 },
+        "min_peak_frac": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 0.15 },
+        "cam_margin_m": { "type": "number", "minimum": 0, "default": 0.1 },
+        "min_run_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.2 },
+        "run_gap_m": { "type": "number", "minimum": 0, "default": 0.1 },
+        "furniture_max_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "occluder_inset_m": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" }, "default": [0.3, 0.7] },
+        "min_step_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.3 },
+        "max_edges": { "type": "integer", "minimum": 4, "default": 8 },
+        "snap_deg": { "type": "number", "exclusiveMinimum": 0, "default": 8.0 },
+        "odometry_ci_frac": { "type": "number", "minimum": 0, "default": 0.01 },
+        "weak_coverage_frac": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "default": 0.5 },
+        "occluded_ci_scale": { "type": "number", "minimum": 1, "default": 2.0 },
+        "bootstrap_n": { "type": "integer", "minimum": 0, "default": 200 }
+      }
     }
   }
 }

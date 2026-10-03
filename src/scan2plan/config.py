@@ -24,6 +24,45 @@ class Calibration(BaseModel):
     nominal: float = Field(default=0.9, gt=0.0, le=1.0)
 
 
+class Outline(BaseModel):
+    """Three-stage room-outline thresholds (plan 04i).
+
+    Every threshold that decides a number lives here (never in code) so the stage
+    JSONs can record the exact parameters that fired. Defaults are the values
+    ported from ``room_fit.py`` (retained) plus the spec's additions.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Stage 1 - observed cloud gates.
+    confidence_min: int = Field(default=1, ge=0, le=2)
+    max_range_m: float = Field(default=8.0, gt=0.0)
+    # Wall-cell / height support (room_fit wall_cells).
+    cell_m: float = Field(default=0.02, gt=0.0)
+    height_bins: int = Field(default=10, ge=1)
+    min_height_bins: int = Field(default=4, ge=1)
+    wall_min_m: float = Field(default=0.25, ge=0.0)
+    wall_max_m: float = Field(default=1.9, gt=0.0)
+    # Wall-line picking (room_fit _pick_side / _longest_run).
+    peak_smooth: int = Field(default=5, ge=1)
+    min_peak_frac: float = Field(default=0.15, gt=0.0, le=1.0)
+    cam_margin_m: float = Field(default=0.10, ge=0.0)
+    min_run_m: float = Field(default=1.2, gt=0.0)
+    run_gap_m: float = Field(default=0.10, ge=0.0)
+    # Classification thresholds (stage 2).
+    furniture_max_m: float = Field(default=1.0, gt=0.0)
+    occluder_inset_m: tuple[float, float] = (0.3, 0.7)
+    # Stage 3 outline regularisation.
+    min_step_m: float = Field(default=0.3, gt=0.0)
+    max_edges: int = Field(default=8, ge=4)
+    snap_deg: float = Field(default=8.0, gt=0.0)
+    # Intervals.
+    odometry_ci_frac: float = Field(default=0.01, ge=0.0)
+    weak_coverage_frac: float = Field(default=0.5, gt=0.0, le=1.0)
+    occluded_ci_scale: float = Field(default=2.0, ge=1.0)
+    bootstrap_n: int = Field(default=200, ge=0)
+
+
 class Config(BaseModel):
     """Runtime configuration. Unknown keys are rejected (extra=forbid)."""
 
@@ -37,6 +76,7 @@ class Config(BaseModel):
     cache: bool = True
     loop_closure: bool = True
     calibration: Calibration = Field(default_factory=Calibration)
+    outline: Outline = Field(default_factory=Outline)
 
 
 def load_config(path: str | Path | None = None, **overrides: Any) -> Config:
