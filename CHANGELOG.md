@@ -4,6 +4,22 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 03 — capture route: bundle builder, capture QA, one command per capture
+- New `src/scan2plan/ingest/build.py` (+ `scripts/build_bundle.sh`): normalise a raw
+  LiDAR-logger export into a conformant interface-I1 bundle. Handles depth in mm or m
+  (`depth_m/`), missing `confidence/` (synthesised all-2), missing `camera_matrix.csv`
+  (K recovered from the odometry row), pass-through `imu.csv`/`rgb.mp4`, and writes
+  `meta.json` (device/iOS/tool/rooms). Every build is **proved** by re-loading it with
+  `load_bundle`, so a successful build is guaranteed to ingest. Rejects depth that is
+  not 256x192 (the recon grid) instead of silently mis-scaling it.
+- New `scripts/run_capture.sh` (one command per capture: raw export → bundle → `scan2plan
+  run`) and `scripts/check_bundle.py` (capture QA: frames, depth coverage, depth range,
+  camera travel, warnings before leaving the room). `tests/test_build_bundle.py` (7).
+- New `docs/protocol.md` (one-page stock-capture protocol) and `docs/device-matrix.md`
+  (device x tier + honest accuracy; **LiDAR tier = Pro-class only**).
+- Demonstrated end to end: a real seed treated as a raw export (no `camera_matrix.csv`,
+  no `rgb.mp4`) → bundle → `scan2plan run` → schema-valid `plan.json`.
+
 ### 04i — fix 4: coverage (walked regions become rooms; polygons cover their regions)
 - `build_regions` carves the full stage-1 `camera_free_space` layer out of the wall
   barrier (walls cannot cover walked space) and counts it as visited, so a region the

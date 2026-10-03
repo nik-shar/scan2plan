@@ -48,6 +48,28 @@ scan2plan --help
 
 Requires Python 3.11+.
 
+## Capture → plan (LiDAR tier, one command per capture)
+
+Capture route = **stock LiDAR logger** (Route 2, `docs/adr/0001-capture-route.md`); the
+LiDAR tier needs a **Pro-class iPhone** (15/16/17 Pro) — see `docs/device-matrix.md`.
+Follow `docs/protocol.md` literally, then:
+
+```bash
+scripts/build_bundle.sh raw/<capture_id> --out bundles \
+    --device "iPhone 15 Pro" --app "<logger>" --app-version "<ver>" --rooms-expected <N>
+python scripts/check_bundle.py bundles/<capture_id>   # capture QA (coverage/travel)
+scripts/run_capture.sh bundles/<capture_id>           # = scan2plan run (I5)
+```
+
+`build_bundle.sh` normalises the logger export into a conformant interface-I1 bundle
+(depth mm, confidence, odometry, K, `meta.json`) and **proves** it ingests; `run_capture.sh`
+accepts either a raw export or a ready bundle. Output: `out/<capture_id>/plan.{json,svg}`,
+`stage1_observed.*`, `stage2_walls.*`, `stage3_rooms.json`. Six stage-3 invariants run after
+every capture and exit non-zero (loudly) when the plan is invalid.
+
+> Photos and video tiers are **recognised** by ingest but their recon front-ends are not
+> implemented yet (`plan 04b` B-2/B-3); the pipeline stops at S2 for them today.
+
 ## CLI
 
 ```

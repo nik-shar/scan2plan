@@ -78,6 +78,22 @@ tight rooms (step back, use video tier), reflective floors (tilt to avoid floor 
 - `build_bundle.sh` output passes `scan2plan validate` bundle check.
 - All three tiers represented in `bench/` (with `08`).
 
+## 9. Implementation progress (04i)
+
+| Task | Status | Artifact |
+|---|---|---|
+| P1-1 one-page protocol | ✅ | `docs/protocol.md` |
+| P1-2 name logger + version, record export spec | 🟡 | app/version pinned at install time and recorded in each bundle's `meta.json`; the export spec is the I1 checklist in `docs/protocol.md` §1 |
+| P1-3 `scripts/build_bundle.sh` | ✅ | `src/scan2plan/ingest/build.py` + `scripts/build_bundle.sh` (validated by re-loading as I1) |
+| P1-4 device matrix doc | ✅ | `docs/device-matrix.md` (LiDAR = Pro-class only) |
+| P1-5 (opt) capture QA checker | ✅ | `scripts/check_bundle.py` |
+| P1-6 synthesise photos/video tiers for dev | ⬜ | blocked on the photo/video recon front-ends (04b B-2/B-3) |
+| P1-7 measure install time | ⬜ | requires a real device + the pinned app |
+
+The capture route is **LiDAR-only** end to end today (`scripts/run_capture.sh`); photos and
+video are recognised by ingest but rejected at S2 (`recon/__init__.py`), which is the
+remaining Part-1/Part-2 gap for the walk-in test.
+
 ## 8. Risks
 
 | Risk | Mitigation |
