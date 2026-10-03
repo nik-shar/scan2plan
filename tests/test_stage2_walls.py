@@ -212,8 +212,18 @@ def test_furniture_gap_bridged_as_occluded() -> None:
 
 def test_stage2_exposes_completion_keys() -> None:
     s2 = reconstruct_walls(_payload(), Config())
-    for key in ("segments", "openings", "unknown_gaps", "completion", "observed_count"):
+    for key in ("segments", "openings", "unknown_gaps", "completion", "observed_count", "graph"):
         assert key in s2
+    graph = s2["graph"]
+    assert graph["node_count"] == len(graph["nodes"])
+    assert sum(graph["counts"].values()) == graph["node_count"]
+    assert len(graph["dangling_ends"]) == graph["counts"]["dangling_end"]
+    for node in graph["nodes"]:
+        assert node["type"] in ("L", "T", "cross", "dangling_end")
+        assert len(node["uv"]) == 2
+    for edge in graph["edges"]:
+        assert edge["node_a"] in {n["id"] for n in graph["nodes"]}
+        assert edge["node_b"] in {n["id"] for n in graph["nodes"]}
 
 
 def test_evidence_explained_full_for_clean_room() -> None:
