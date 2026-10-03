@@ -211,6 +211,13 @@ def _camera_path_xz(cam_xyz: NDArray[np.float64], max_pts: int = 200) -> list[li
     return [[float(a), float(b)] for a, b in cam_xyz[::step][:, [0, 2]]]
 
 
+def _cam_endpoint(cam_xyz: NDArray[np.float64], idx: int) -> list[float] | None:
+    """First/last camera position (world XZ) so the path start/end can be marked."""
+    if cam_xyz.shape[0] == 0:
+        return None
+    return [round(float(cam_xyz[idx, 0]), 3), round(float(cam_xyz[idx, 2]), 3)]
+
+
 def observed_evidence(
     points: NDArray[np.float64],
     cam_xyz: NDArray[np.float64],
@@ -273,6 +280,8 @@ def observed_evidence(
         },
         "camera_travel_m": round(camera_travel_m(cam_xyz), 3),
         "camera_xz": _camera_path_xz(cam_xyz),
+        "camera_start": _cam_endpoint(cam_xyz, 0),
+        "camera_end": _cam_endpoint(cam_xyz, -1),
         "layers": {
             "wall_cells": _cap(wall_layer),
             "floor_cells": _cap(floor_cells),

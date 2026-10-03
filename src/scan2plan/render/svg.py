@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import base64
 import io
+import math
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw
+
+from scan2plan.geometry.walls import explained_mask, rotate_xz, segments_from_payload
 
 
 def _esc(text: str) -> str:
@@ -99,6 +103,14 @@ def render_evidence_svg(
     path_px = [pix(*_cell_xy(p)) for p in cam]
     if len(path_px) > 1:
         draw.line(path_px, fill=(26, 115, 232), width=2)  # blue camera path
+    # stage-1 addition: mark the path start (green) and end (red).
+    for pt, colour in (
+        (stage1.get("camera_start"), (46, 160, 67)),
+        (stage1.get("camera_end"), (217, 48, 37)),
+    ):
+        if pt:
+            cx, cy = pix(float(pt[0]), float(pt[1]))
+            draw.ellipse([cx - 6, cy - 6, cx + 6, cy + 6], fill=colour)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -140,19 +152,24 @@ def render_walls_svg(
     the support gate); the four reconstructed wall segments are drawn as bold red
     lines. Rendered as an embedded PNG so thousands of cells stay compact.
     """
-    walls = stage2.get("walls", [])
+    segs = stage2.get("segments", [])
     params = stage2.get("params", {})
-    min_bins = int(params.get("min_height_bins", 4))
+    tol = float(params.get("evidence_tol_m", 0.05))
+    theta = math.radians(float(stage2.get("manhattan_angle_deg", 0.0)))
     cells = []
     if isinstance(stage1, dict):
         cells = stage1.get("layers", {}).get("wall_cells", []) or []
 
     coords: list[tuple[float, float]] = [(float(c["x"]), float(c["z"])) for c in cells]
-    for w in walls:
-        line = w.get("line_world")
-        if line:
-            coords.append((float(line["a"][0]), float(line["a"][1])))
-            coords.append((float(line["b"][0]), float(line["b"][1])))
+    for s in segs:
+        ep = s.get("endpoints_world")
+        if ep:
+            coords.append((float(ep["a"][0]), float(ep["a"][1])))
+            coords.append((float(ep["b"][0]), float(ep["b"][1])))
+    if isinstance(stage1, dict):
+        for pt in (stage1.get("camera_start"), stage1.get("camera_end")):
+            if pt:
+                coords.append((float(pt[0]), float(pt[1])))
 
     if not coords:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -181,34 +198,60 @@ def render_walls_svg(
         h = size_px / 2
         draw.rectangle([cx - h, cy - h, cx + h, cy + h], fill=fill)
 
+    cell_xz = (
+        np.array([[float(c["x"]), float(c["z"])] for c in cells], dtype=np.float64)
+        if cells
+        else np.empty((0, 2), dtype=np.float64)
+    )
+    explained = (
+        explained_mask(rotate_xz(cell_xz, theta), segments_from_payload(stage2), tol).tolist()
+        if cells
+        else []
+    )
     cell_px = max(1.0, float(params.get("cell_m", 0.02)) * px_per_m)
-    for c in cells:
+    for c, seen in zip(cells, explained, strict=True):
         support = int(c.get("support", 1))
-        if support >= min_bins:
-            shade = max(70, 200 - 14 * support)
+        if seen:
+            shade = max(80, 210 - 14 * support)
+            colour = (shade, shade, shade)
         else:
-            shade = 225
-        sq(float(c["x"]), float(c["z"]), cell_px, (shade, shade, shade))
-    for w in walls:
-        line = w.get("line_world")
-        if line:
-            draw.line(
-                [
-                    pix(float(line["a"][0]), float(line["a"][1])),
-                    pix(float(line["b"][0]), float(line["b"][1])),
-                ],
-                fill=(200, 30, 30),
-                width=3,
-            )
+            colour = (219, 68, 55)  # unexplained wall cell -> red
+        sq(float(c["x"]), float(c["z"]), cell_px, colour)
+    for s in segs:
+        ep = s.get("endpoints_world")
+        if not ep:
+            continue
+        line_colour = (230, 120, 20) if s.get("provenance") == "inferred" else (30, 80, 220)
+        draw.line(
+            [
+                pix(float(ep["a"][0]), float(ep["a"][1])),
+                pix(float(ep["b"][0]), float(ep["b"][1])),
+            ],
+            fill=line_colour,
+            width=3,
+        )
+    if isinstance(stage1, dict):
+        path = stage1.get("camera_xz", []) or []
+        path_px = [pix(float(p[0]), float(p[1])) for p in path]
+        if len(path_px) > 1:
+            draw.line(path_px, fill=(26, 115, 232), width=2)
+        for pt, marker in (
+            (stage1.get("camera_start"), (46, 160, 67)),
+            (stage1.get("camera_end"), (217, 48, 37)),
+        ):
+            if pt:
+                cx, cy = pix(float(pt[0]), float(pt[1]))
+                draw.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], fill=marker)
 
-    observed = sum(1 for w in walls if w.get("state") == "observed")
-    counts = stage2.get("cells", {})
+    ev = stage2.get("evidence", {})
     legend = [
-        f"walls observed: {observed}/{len(walls)}",
-        f"cells kept/dropped: {counts.get('kept')}/{counts.get('dropped')} (support >= {min_bins})",
-        f"manhattan angle {stage2.get('manhattan_angle_deg')} deg | "
-        f"min run {params.get('min_run_m')} m",
-        f"camera inside walls: {stage2.get('camera_inside_walls_fraction')}",
+        f"wall segments: {stage2.get('wall_count')} ({stage2.get('inferred_count')} inferred)",
+        f"evidence_explained: {ev.get('evidence_explained')} "
+        f"(kept {ev.get('evidence_explained_kept')})",
+        f"unexplained wall cells: {ev.get('cells_unexplained')} (red)",
+        f"angle {stage2.get('manhattan_angle_deg')} deg | min run {params.get('min_run_m')} m "
+        f"| tol {tol} m",
+        "camera start (green) / end (red)",
     ]
 
     buf = io.BytesIO()
