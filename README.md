@@ -6,21 +6,20 @@ interval on every measurement.
 
 Applied AI Engineer case study submission (Aug 2026).
 
-> **Status: Stage 1 frozen (`stage1-frozen`); stage 2 landed; stages 3+ redesigned.**
+> **Status: stage 1 frozen (`stage1-frozen`); stage 2 walls + stage 3 rooms landed.**
 > Repo scaffold, config (I4), utilities, CLI (I5), frozen CIR (I2), published schema
 > (I3), and the confirmed B-0 depth-unit check are in place. Stage 1 is the
-> **observed-evidence** layer and stage 2 is **multi-segment wall extraction**
-> (it replaces the earlier min-bounding-rectangle stage 2): `scan2plan run` (LiDAR
-> tier) runs S1 ingest + S2 recon, writes `stage1_observed.{json,svg}`, then extracts
-> wall segments, **completes** them (bridging broken lines, preserving openings the
-> camera walked through) and builds a **node/edge wall graph** into
-> `stage2_walls.{json,svg}` **from the stage-1 artifact only**
-> (never the raw cloud), and emits a schema-valid **stub** `plan.json` with
-> `status = "not_computed"`. Outline closing, classification and snapping were moved
-> to `archive/old_stage23/` for redesign (see `docs/stage1_contract.md` and
-> `docs/plans/04i`). The tested wall finder `scan2plan.geometry.room_fit` is kept,
-> unused by default. `scan2plan ablate` is pending the redesign; damage/scope/
-> calibration stages (S5–S8) land later. See `docs/plans/`.
+> **observed-evidence** layer, stage 2 is **multi-segment wall extraction**
+> (completion + node/edge graph), and stage 3 (`scan2plan.geometry.rooms.build_stage3`)
+> turns them into **closed, dimensioned rooms** — greedy cost-ordered closure,
+> flood-filled regions with doorway-shaped waist splits, per-room polygons (L-shapes
+> supported), Monte-Carlo intervals on every number, ceiling (with a prior when not
+> seen) and openings/adjacency. `scan2plan run` (LiDAR tier) writes
+> `stage1_observed.*`, `stage2_walls.*`, `stage3_rooms.json`, a populated schema-valid
+> `plan.json` (`status="computed"`) and `plan.svg`. **No vision model is used in
+> stages 1–3.** `scan2plan ablate` / stitch / damage / calibration (S4–S8) land later;
+> `scan2plan ablate` emits the stage-1/2/3 artifacts + plan and honestly reports that
+> the drift ablation is not computed. See `docs/plans/` and `docs/plans/04i-stage3.md`.
 
 ## Interfaces (frozen contracts)
 

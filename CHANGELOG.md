@@ -4,6 +4,52 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — stage 3: rooms, closed polygons, per-room measurements
+- New `src/scan2plan/geometry/rooms.py::build_stage3` (pure geometry, deterministic):
+  greedy cost-ordered **closure** (`closure_cost`/`plan_score`, camera-crossing
+  forbidden), **regions** flood-filled from the observed footprint with **waist**
+  splits (`inferred_opening`) and `unobserved_enclosed` regions, per-room **polygon**
+  (offset-snapped, L-shapes supported) with node-to-node wall lengths, shoelace area
+  and **Monte-Carlo** intervals, **ceiling** (histogram peak, else an `unmeasured`
+  prior), **openings/adjacency**.
+- `scan2plan run` now writes `stage3_rooms.json`, a populated I3-valid `plan.json`
+  (`status="computed"`: rooms/surfaces/openings/measures) and `plan.svg`
+  (`render/plan_svg.py`: observed solid, inferred dashed per provenance, opening arcs,
+  area labels, scale bar, hatched unobserved). No I3 schema change (existing fields).
+- New append-only I4 keys (uncalibrated, plan 04f/08): `closure_max_m`,
+  `closure_wall_tol_m`, `closure_bonus_m`, `closure_floor_penalty`, `waist_min_m`,
+  `waist_max_m`, `room_grid_m`, `room_min_area_m2`, `mc_samples`,
+  `ceiling_min_above_floor_m`, `ceiling_bin_m`, `ceiling_prior_low_m`,
+  `ceiling_prior_high_m`. Every element carries provenance (`observed` /
+  `inferred_*` / `prior`). See `docs/plans/04i-stage3.md`.
+- Tests `tests/test_rooms.py` (11): synthetic rect + L-shape area/walls, determinism
+  (byte-identical), ceiling prior, closure-cost rules, Monte-Carlo coverage (~95%).
+
+### 04i — stage 2 cleanup (opening cap, wall merge, evidence split)
+- **Opening-width cap** (I4 `open_min_m` 0.5 / `open_max_m` 2.5): a camera-crossed
+  gap narrower than `open_min_m` is a **dropout**, wider than `open_max_m` is a new
+  **`open_space`** class (a walk-through, not an opening); only 0.5-2.5 m gaps are
+  `openings`. `stage2_walls.json` gains `open_spaces[]` (SVG teal).
+- **Wall merge** (`geometry/wall_complete.py::merge_wall_pieces`): after completion,
+  parallel same-axis pieces whose offsets are within `merge_tol_m` (0.25) and whose
+  spans overlap (or abut with matching provenance) collapse into one wall, recording
+  `thickness_m`; a completion bridge that only abuts keeps its own provenance. The
+  graph is built on the merged walls; **all** nodes within `node_merge_m` (0.10) —
+  line ends included — are merged before the nodes are re-typed (L/T/cross/dangling).
+- **Length reporting**: `stage2_walls.json` `lengths` = `observed_length_m`,
+  `inferred_length_m`, `longest_inferred_run_m`, and a flag when any inferred run
+  exceeds `max_extend_m` (1 / 11 / 6 flagged runs on the three seeds).
+- **Evidence split**: `evidence` now partitions every wall cell into
+  `wall_like_explained` / `dense_blobs` / `residual_noise` (density gate
+  `blob_bin_m` 0.10, `blob_min_cells` 6); the SVG shades wall-like grey, dense blobs
+  orange, residual noise pale red.
+- **Node/cross report**: a `merge` block reports segments / nodes / crosses
+  before→after. Crosses do **not** drop on the seeds (4→4, 6→6) and are reported
+  honestly: they are genuine 4-way meetings of interior walls (near-parallel lines
+  0.31 m apart exceed the 0.25 m merge tolerance), not double-face artifacts.
+- New append-only I4 keys `open_min_m`, `open_max_m`, `blob_bin_m`, `blob_min_cells`.
+  Tests: `test_wall_complete.py` (+7), `test_stage2_walls.py` (+4).
+
 ### 04i — stage 2 wall graph (nodes + edges after completion)
 - New `src/scan2plan/geometry/wall_graph.py`: after completion, every vertical ×
   horizontal wall intersection becomes a **node** (a stub ≤ `max_extend_m` the camera
