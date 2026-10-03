@@ -52,6 +52,14 @@ def run_recon(
     points_path = art_dir / "points.npz"
     np.savez_compressed(points_path, points=points.astype(np.float32))
 
+    # Unfiltered cloud (range/confidence gates OFF) for the stage-1 evidence layer
+    # (plan 04i). Written at a conventional path; not referenced by frozen I2.
+    if config.outline.save_unfiltered:
+        unfiltered, _ = reconstruct_lidar(
+            capture_dir, cir.frames, config, stride=stride, voxel_m=voxel_m, filters=False
+        )
+        np.savez_compressed(art_dir / "points_unfiltered.npz", points=unfiltered.astype(np.float32))
+
     poses_path = art_dir / "poses.npz"
     poses = [
         np.array(frame.pose, dtype=np.float64).reshape(4, 4)

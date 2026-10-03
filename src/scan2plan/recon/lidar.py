@@ -32,16 +32,19 @@ def voxel_downsample(points: NDArray[np.float64], voxel_m: float) -> NDArray[np.
     return points[np.sort(first)]
 
 
-def _frame_world_points(capture_dir: Path, frame: Frame, config: Config) -> NDArray[np.float64]:
+def _frame_world_points(
+    capture_dir: Path, frame: Frame, config: Config, *, filters: bool = True
+) -> NDArray[np.float64]:
     if frame.depth_ref is None or frame.pose is None or frame.K is None:
         return np.empty((0, 3), dtype=np.float64)
     depth = np.asarray(Image.open(capture_dir / frame.depth_ref)).astype(np.float64)
     depth = depth * config.depth_scale_m  # uint16 -> metres
-    # Stage-1 gates (plan 04i): drop out-of-range returns and low-confidence depth.
-    depth = np.where(depth <= config.outline.max_range_m, depth, 0.0)
-    if frame.conf_ref is not None:
-        conf = np.asarray(Image.open(capture_dir / frame.conf_ref)).astype(np.uint8)
-        depth = np.where(conf >= config.outline.confidence_min, depth, 0.0)
+    if filters:
+        # Stage-1 gates (plan 04i): drop out-of-range returns and low-confidence depth.
+        depth = np.where(depth <= config.outline.max_range_m, depth, 0.0)
+        if frame.conf_ref is not None:
+            conf = np.asarray(Image.open(capture_dir / frame.conf_ref)).astype(np.uint8)
+            depth = np.where(conf >= config.outline.confidence_min, depth, 0.0)
     k = scale_intrinsics(np.array(frame.K, dtype=np.float64).reshape(3, 3), *DEPTH_SCALE_XY)
     cam = depth_to_points(depth, k)
     if cam.size == 0:
@@ -67,6 +70,7 @@ def reconstruct_lidar(
     *,
     stride: int = 20,
     voxel_m: float = 0.01,
+    filters: bool = True,
 ) -> tuple[NDArray[np.float64], ReconQuality]:
     """Build the world point cloud + quality metrics from sampled frames."""
     sampled = frames[::stride] if stride > 1 else frames
@@ -74,7 +78,7 @@ def reconstruct_lidar(
     used = 0
     coverage_acc: list[float] = []
     for frame in sampled:
-        world = _frame_world_points(capture_dir, frame, config)
+        world = _frame_world_points(capture_dir, frame, config, filters=filters)
         if frame.depth_ref is not None:
             depth = np.asarray(Image.open(capture_dir / frame.depth_ref))
             coverage_acc.append(float(np.mean(depth > 0)))
