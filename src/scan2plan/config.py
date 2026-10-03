@@ -49,6 +49,10 @@ class Outline(BaseModel):
     cam_margin_m: float = Field(default=0.10, ge=0.0)
     min_run_m: float = Field(default=1.2, gt=0.0)
     run_gap_m: float = Field(default=0.10, ge=0.0)
+    # Multi-segment wall extraction (stage 2).
+    merge_tol_m: float = Field(default=0.25, ge=0.0)
+    join_tol_m: float = Field(default=0.30, gt=0.0)
+    evidence_tol_m: float = Field(default=0.05, gt=0.0)
     # Classification thresholds (stage 2).
     furniture_max_m: float = Field(default=1.0, gt=0.0)
     occluder_inset_m: tuple[float, float] = (0.3, 0.7)

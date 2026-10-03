@@ -15,18 +15,22 @@ from scan2plan.geometry.evidence import (
 )
 from scan2plan.geometry.planes import HorizontalPlane, horizontal_planes
 from scan2plan.geometry.walls import (
-    SIDES,
+    AXES,
+    Segment,
     WallParams,
+    explained_mask,
     reconstruct_walls,
     wall_params_from_config,
 )
 
 __all__ = [
+    "AXES",
     "EVIDENCE_LAYER_CAP",
-    "SIDES",
     "HorizontalPlane",
+    "Segment",
     "WallParams",
     "camera_travel_m",
+    "explained_mask",
     "horizontal_planes",
     "observed_evidence",
     "reconstruct_walls",
