@@ -21,7 +21,6 @@ from scan2plan.util.frames import depth_to_points, scale_intrinsics
 
 #: K applies to the 1920x1440 RGB frame; depth/confidence are 256x192 (I7 section 4).
 DEPTH_SCALE_XY = (256.0 / 1920.0, 192.0 / 1440.0)
-MIN_CONFIDENCE = 1  # 04b section 3.4: keep ARKit confidence >= 1
 
 
 def voxel_downsample(points: NDArray[np.float64], voxel_m: float) -> NDArray[np.float64]:
@@ -38,9 +37,11 @@ def _frame_world_points(capture_dir: Path, frame: Frame, config: Config) -> NDAr
         return np.empty((0, 3), dtype=np.float64)
     depth = np.asarray(Image.open(capture_dir / frame.depth_ref)).astype(np.float64)
     depth = depth * config.depth_scale_m  # uint16 -> metres
+    # Stage-1 gates (plan 04i): drop out-of-range returns and low-confidence depth.
+    depth = np.where(depth <= config.outline.max_range_m, depth, 0.0)
     if frame.conf_ref is not None:
         conf = np.asarray(Image.open(capture_dir / frame.conf_ref)).astype(np.uint8)
-        depth = np.where(conf >= MIN_CONFIDENCE, depth, 0.0)
+        depth = np.where(conf >= config.outline.confidence_min, depth, 0.0)
     k = scale_intrinsics(np.array(frame.K, dtype=np.float64).reshape(3, 3), *DEPTH_SCALE_XY)
     cam = depth_to_points(depth, k)
     if cam.size == 0:
