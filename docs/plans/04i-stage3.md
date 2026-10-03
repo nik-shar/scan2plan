@@ -101,6 +101,13 @@ The per-invariant values are recorded in `stage3_rooms.json` under `invariants`
    a segment clipped to its graph nodes; `plan.svg` now draws those walls (observed
    solid, inferred dashed).
 
+2. **Minimum room rule.** `apply_min_room_rule` merges a region that fails
+   `min_room_area_m2` (2.0) or `min_room_inradius_m` (0.6) into the neighbour it
+   shares the longest boundary with (smallest failing region first, ties by index),
+   else labels it `non_room_fragment` (reported in `stage3_rooms.json`
+   `non_room_fragments` / `min_room_merges`). A polygon-level guard applies the same
+   gate after snapping. Rooms are never emitted below the gate.
+
 ## Known limitations (honest; rule 7)
 
 - The footprints are ragged: stage-1 floor evidence is sparse (10 cm cells, and the

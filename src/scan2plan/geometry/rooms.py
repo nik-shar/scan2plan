@@ -1448,6 +1448,151 @@ def resolve_overlaps(
     return rooms, report
 
 
+def region_inradius(cells: set[tuple[int, int]], grid: Grid) -> float:
+    """Max inscribed-circle radius (m) of a region (distance transform on its bbox)."""
+    if not cells:
+        return 0.0
+    ii = [c[0] for c in cells]
+    jj = [c[1] for c in cells]
+    i0, i1, j0, j1 = min(ii), max(ii), min(jj), max(jj)
+    mask = np.zeros((i1 - i0 + 1, j1 - j0 + 1), dtype=bool)
+    for i, j in cells:
+        mask[i - i0, j - j0] = True
+    return float(ndimage.distance_transform_edt(mask).max()) * grid.cell
+
+
+def _boundary_contacts(regions: list[Region]) -> dict[tuple[int, int], int]:
+    """Cell contacts between region pairs across the wall barrier (longest boundary)."""
+    by_cell: dict[tuple[int, int], int] = {}
+    for k, r in enumerate(regions):
+        for c in r.cells:
+            by_cell[c] = k
+    contacts: dict[tuple[int, int], int] = {}
+    for (i, j), k in by_cell.items():
+        for gap in (1, 2, 3):
+            for di, dj in ((gap, 0), (-gap, 0), (0, gap), (0, -gap)):
+                k2 = by_cell.get((i + di, j + dj))
+                if k2 is not None and k2 != k:
+                    key = (min(k, k2), max(k, k2))
+                    contacts[key] = contacts.get(key, 0) + 1
+    return contacts
+
+
+def apply_min_room_rule(
+    regions: list[Region], grid: Grid, p: RoomParams
+) -> tuple[list[Region], list[dict[str, object]]]:
+    """Merge or reclassify regions too small/thin to be rooms (fix 2).
+
+    A region that fails ``min_room_area_m2`` or ``min_room_inradius_m`` is merged
+    into the neighbour it shares the longest boundary with (deterministically: the
+    smallest failing region first, ties by index); if it has no neighbour - or the
+    merge still fails - it becomes ``non_room_fragment`` and is not emitted as a
+    room. Merging only ever grows a region, so the pass terminates.
+
+    Region indices stay stable (a merged-away region becomes a tombstone), and the
+    area/inradius/boundary-contact bookkeeping is cached and updated incrementally.
+    """
+    n = len(regions)
+    if n == 0:
+        return regions, []
+    cell2 = grid.cell * grid.cell
+    area = [len(r.cells) * cell2 for r in regions]
+    inrad: dict[int, float] = {}
+    alive = [True] * n
+    contacts = _boundary_contacts(regions)
+    report: list[dict[str, object]] = []
+
+    def _inrad(k: int) -> float:
+        if k not in inrad:
+            inrad[k] = region_inradius(regions[k].cells, grid)
+        return inrad[k]
+
+    def _fails(k: int) -> bool:
+        # Area is O(1); the (distance-transform) inradius is computed only when needed.
+        return area[k] < p.min_room_area_m2 or _inrad(k) < p.min_room_inradius_m
+
+    for _ in range(n + 1):
+        failing = [
+            (area[k], k) for k in range(n) if alive[k] and regions[k].status == "room" and _fails(k)
+        ]
+        if not failing:
+            break
+        _, k = min(failing)
+        neighbours = sorted(
+            (
+                (other, c)
+                for (a, b), c in contacts.items()
+                if k in (a, b) and alive[other := (b if a == k else a)]
+            ),
+            key=lambda t: (-t[1], t[0]),
+        )
+        small = regions[k]
+        if not neighbours:
+            small.status = "non_room_fragment"
+            report.append(
+                {
+                    "region": small.id,
+                    "cells": len(small.cells),
+                    "area_m2": round(area[k], 4),
+                    "inradius_m": round(_inrad(k), 4),
+                    "reason": "no_neighbour",
+                }
+            )
+            alive[k] = False
+            continue
+        tgt, boundary_cells = neighbours[0]
+        big = regions[tgt]
+        big.cells |= small.cells
+        big.has_camera = big.has_camera or small.has_camera
+        big.status = "room" if big.has_camera else "unobserved_enclosed"
+        area[tgt] += area[k]
+        inrad[tgt] = region_inradius(big.cells, grid)
+        report.append(
+            {
+                "region": small.id,
+                "merged_into": big.id,
+                "cells": len(small.cells),
+                "area_m2": round(area[k], 4),
+                "inradius_m": round(_inrad(k), 4),
+                "boundary_cells": boundary_cells,
+            }
+        )
+        # Redirect the merged region's contacts onto its target, drop its own.
+        for key in [key for key in contacts if k in key]:
+            count = contacts.pop(key)
+            other = key[0] if key[1] == k else key[1]
+            if other == tgt or not alive[other]:
+                continue
+            nk = (min(tgt, other), max(tgt, other))
+            contacts[nk] = contacts.get(nk, 0) + count
+        small.cells = set()
+        small.status = "merged"
+        alive[k] = False
+    return regions, report
+
+
+def polygon_inradius(corners: list[tuple[float, float]]) -> float:
+    """Max inscribed-circle radius (m) of a uv polygon (deterministic binary search)."""
+    if len(corners) < 3:
+        return 0.0
+    poly = Polygon(corners)
+    if not poly.is_valid:
+        poly = poly.buffer(0)
+    if poly.is_empty or poly.buffer(-1e-6).is_empty:
+        return 0.0
+    hi = 1.0
+    while not poly.buffer(-hi).is_empty and hi < 64.0:
+        hi *= 2.0
+    lo = 0.0
+    for _ in range(20):
+        mid = (lo + hi) / 2.0
+        if poly.buffer(-mid).is_empty:
+            hi = mid
+        else:
+            lo = mid
+    return lo
+
+
 def build_stage3(
     stage1: dict[str, object],
     stage2: dict[str, object],
@@ -1485,6 +1630,7 @@ def build_stage3(
     cam_cells = _cam_cell_set(cam_uv, grid)
     raw_regions = build_regions(closed, grid, domain, cam_uv, p)
     regions, waists = split_regions(raw_regions, grid, cam_cells, p)
+    regions, min_room_merges = apply_min_room_rule(regions, grid, p)
 
     nodes = stage2.get("graph", {})
     node_uv: NDArray[np.float64] = np.empty((0, 2))
@@ -1496,8 +1642,19 @@ def build_stage3(
 
     rooms: list[Room] = []
     enclosed: list[dict[str, object]] = []
+    fragments: list[dict[str, object]] = []
     for reg in regions:
-        if reg.status == "discarded":
+        if reg.status in ("discarded", "merged") or not reg.cells:
+            continue
+        if reg.status == "non_room_fragment":
+            fragments.append(
+                {
+                    "region": reg.id,
+                    "cells": len(reg.cells),
+                    "area_m2": round(len(reg.cells) * grid.cell * grid.cell, 4),
+                    "reason": "below_min_room",
+                }
+            )
             continue
         if reg.status == "unobserved_enclosed":
             corners = region_polygon(reg.cells)
@@ -1511,8 +1668,22 @@ def build_stage3(
             )
             continue
         room = _make_room(reg, grid, closed, node_uv, points_xyz, theta, floor_y, p)
-        if room is not None:
-            rooms.append(room)
+        if room is None:
+            continue
+        if (
+            room.area_m2 < p.min_room_area_m2
+            or polygon_inradius(room.polygon_uv) < p.min_room_inradius_m
+        ):
+            fragments.append(
+                {
+                    "region": reg.id,
+                    "cells": room.cells,
+                    "area_m2": round(room.area_m2, 4),
+                    "reason": "polygon_below_gate",
+                }
+            )
+            continue
+        rooms.append(room)
 
     rooms, overlap_report = resolve_overlaps(rooms, closed, node_uv, grid, p)
     rooms = [r for r in rooms if r.area_m2 > 0.0]
@@ -1580,6 +1751,8 @@ def build_stage3(
         ],
         "room_count": len(rooms),
         "rooms": [_room_out(r, theta) for r in rooms],
+        "non_room_fragments": fragments,
+        "min_room_merges": min_room_merges,
         "overlap_resolved": overlap_report,
         "unobserved_enclosed": enclosed,
         "openings": [

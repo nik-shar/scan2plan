@@ -4,6 +4,16 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — fix 2: minimum room rule (merge small regions / non_room_fragment)
+- New `rooms.apply_min_room_rule` (region level, deterministic): a region that fails
+  `min_room_area_m2` (2.0 m²) or `min_room_inradius_m` (0.6 m) is merged into the
+  neighbour it shares the longest boundary with; with no neighbour - or if the merge
+  still fails - it becomes `non_room_fragment`. A polygon-level guard applies the
+  same gate after snapping. Reported in `stage3_rooms.json`
+  (`non_room_fragments`, `min_room_merges`).
+- Seeds: `c00a170fe1` 7 -> 5 rooms (smallest 0.27 m² gone), `1a8384c3f6` 2 -> 1 room
+  + 1 fragment. `min_room` now passes; coverage improves as a side effect.
+
 ### 04i — fix 1: room-polygon overlap/validity + wall render clipping
 - All 9 seed room polygons were self-intersecting (bow-tie): `simplify_polygon` now
   collapses consecutive parallel edges before rebuilding corners (the
