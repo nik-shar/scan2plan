@@ -23,11 +23,11 @@ from scan2plan import __version__
 from scan2plan.cir import CIR
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import Config, load_config
-from scan2plan.geometry import observed_evidence
+from scan2plan.geometry import observed_evidence, reconstruct_walls
 from scan2plan.geometry.planes import horizontal_planes
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
-from scan2plan.render import render_evidence_svg
+from scan2plan.render import render_evidence_svg, render_walls_svg
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -162,6 +162,45 @@ def _stage1_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
     return stage1
 
 
+def _stage2_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object] | None:
+    """Reconstruct walls from the stage-1 artifact and write its JSON + SVG.
+
+    Stage 2 is a pure function of the frozen ``stage1_observed.json`` (plan 04i):
+    it never touches the raw cloud. Returns ``None`` when the stage-1 artifact is
+    absent (nothing to build on).
+    """
+    stage1_path = out_dir / "stage1_observed.json"
+    if not stage1_path.is_file():
+        return None
+    stage1 = json.loads(stage1_path.read_text())
+    stage2 = reconstruct_walls(stage1, cfg)
+    (out_dir / "stage2_walls.json").write_text(json.dumps(stage2, indent=2, sort_keys=True) + "\n")
+    render_walls_svg(
+        stage2,
+        out_dir / "stage2_walls.svg",
+        stage1=stage1,
+        title=f"{cir.session.id} - stage 2: wall reconstruction",
+    )
+    return stage2
+
+
+def _report_stage2(stage2: dict[str, object] | None, out_dir: Path) -> None:
+    """Print the stage-2 wall-reconstruction summary (shared by ``run``/``ablate``)."""
+    if stage2 is None:
+        return
+    walls = stage2.get("walls", [])
+    cells = stage2.get("cells", {})
+    observed = sum(1 for w in walls if w.get("state") == "observed")  # type: ignore[union-attr]
+    typer.echo(
+        f"  stage 2 walls: {observed}/{len(walls)} observed "  # type: ignore[arg-type]
+        f"(cells kept {cells.get('kept')}/{cells.get('input')})"  # type: ignore[union-attr]
+    )
+    for w in stage2.get("warnings", []):  # type: ignore[union-attr]
+        typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
+    typer.echo(f"  wrote {out_dir / 'stage2_walls.json'}")
+    typer.echo(f"  wrote {out_dir / 'stage2_walls.svg'}")
+
+
 def _write_stub_plan(cir: CIR, out_dir: Path) -> Path:
     """Write a schema-valid stub plan.json (``status="not_computed"``).
 
@@ -215,6 +254,7 @@ def run(
     except ValueError as exc:
         typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
         stage1 = {"layer_counts": {}, "warnings": [str(exc)]}
+    stage2 = _stage2_artifacts(cir, out_dir, cfg)
     plan_path = _write_stub_plan(cir, out_dir)
 
     quality = cir.recon.quality
@@ -234,8 +274,9 @@ def run(
         typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
     typer.echo(f"  wrote {out_dir / 'stage1_observed.json'}")
     typer.echo(f"  wrote {out_dir / 'stage1_observed.svg'}")
+    _report_stage2(stage2, out_dir)
     typer.echo(f"  wrote {plan_path}")
-    typer.echo("  note: stages beyond 1 (outline/geometry/stitch/damage) are being redesigned.")
+    typer.echo("  note: stages beyond 2 (closing/stitch/damage) are being redesigned.")
 
 
 @app.command()
@@ -300,10 +341,11 @@ def ablate(
         _stage1_artifacts(cir, out_dir, cfg)
     except ValueError as exc:
         typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
+    _report_stage2(_stage2_artifacts(cir, out_dir, cfg), out_dir)
     _write_stub_plan(cir, out_dir)
     typer.secho(
-        "  ablation not computed: drift ablation depends on the stage 2/3 rebuild "
-        "(plan 04i). Wrote stage-1 evidence + stub plan instead.",
+        "  ablation not computed: drift ablation depends on the stage 3+ rebuild "
+        "(plan 04i). Wrote stage-1 evidence + stage-2 walls + stub plan instead.",
         fg=typer.colors.YELLOW,
         err=True,
     )
