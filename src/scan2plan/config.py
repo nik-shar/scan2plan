@@ -52,10 +52,19 @@ class Outline(BaseModel):
     # Classification thresholds (stage 2).
     furniture_max_m: float = Field(default=1.0, gt=0.0)
     occluder_inset_m: tuple[float, float] = (0.3, 0.7)
+    # Observed-evidence layers (stage 1).
+    evidence_bin_m: float = Field(default=0.10, gt=0.0)
+    floor_band_m: float = Field(default=0.08, gt=0.0)
+    ray_carve: bool = False
+    free_stride: int = Field(default=25, ge=1)
+    save_unfiltered: bool = True
     # Stage 3 outline regularisation.
     min_step_m: float = Field(default=0.3, gt=0.0)
     max_edges: int = Field(default=8, ge=4)
     snap_deg: float = Field(default=8.0, gt=0.0)
+    infer_tol_m: float = Field(default=0.20, gt=0.0)
+    inferred_ci_per_m: float = Field(default=0.05, ge=0.0)
+    assert_camera_inside: bool = False
     # Intervals.
     odometry_ci_frac: float = Field(default=0.01, ge=0.0)
     weak_coverage_frac: float = Field(default=0.5, gt=0.0, le=1.0)
