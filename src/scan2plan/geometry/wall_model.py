@@ -53,14 +53,33 @@ def wall_cells(
     Only the wall band (floor+``wall_min_m`` .. min(ceiling-0.25, floor+``wall_max_m``))
     is used, so skirting and the ceiling join do not dilute the support test.
     """
+    cells, counts = wall_cells_with_support(pts, floor_y, ceil_y, p)
+    if cells.shape[0] == 0:
+        return cells
+    params = p or WallParams()
+    return cells[counts >= params.min_height_bins]
+
+
+def wall_cells_with_support(
+    pts: NDArray[np.float64],
+    floor_y: float,
+    ceil_y: float | None,
+    p: WallParams | None = None,
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+    """Every wall-band XZ cell with its height-bin support count (plan 04i stage 1).
+
+    Returns ``(cells (M,2), counts (M,))`` for all cells occupied in >= 1 height
+    bin; the ``min_height_bins`` threshold is a *classification* decision (stage 2),
+    not an evidence filter, so stage 1 keeps the raw counts.
+    """
     p = p or WallParams()
     if pts.size == 0:
-        return np.zeros((0, 2))
+        return np.zeros((0, 2)), np.zeros((0,), dtype=np.int64)
     y_lo = floor_y + p.wall_min_m
     y_hi = (ceil_y - 0.25) if ceil_y is not None else floor_y + p.wall_max_m
     band = pts[(pts[:, 1] > y_lo) & (pts[:, 1] < y_hi)]
     if len(band) == 0:
-        return np.zeros((0, 2))
+        return np.zeros((0, 2)), np.zeros((0,), dtype=np.int64)
 
     ix_raw = np.floor(band[:, 0] / p.cell_m).astype(np.int64)
     iz_raw = np.floor(band[:, 2] / p.cell_m).astype(np.int64)
@@ -77,10 +96,9 @@ def wall_cells(
     # distinct (cell, height-bin) pairs -> count height bins per cell
     pair = np.unique(cid * p.height_bins + hb)
     cells, counts = np.unique(pair // p.height_bins, return_counts=True)
-    keep = cells[counts >= p.min_height_bins]
-    cx = ((keep // stride) + x0 + 0.5) * p.cell_m
-    cz = ((keep % stride) + z0 + 0.5) * p.cell_m
-    return np.stack([cx, cz], axis=1)
+    cx = ((cells // stride) + x0 + 0.5) * p.cell_m
+    cz = ((cells % stride) + z0 + 0.5) * p.cell_m
+    return np.stack([cx, cz], axis=1), counts.astype(np.int64)
 
 
 def rotate_xz(xz: NDArray[np.float64], theta: float) -> NDArray[np.float64]:

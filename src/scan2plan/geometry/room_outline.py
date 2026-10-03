@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage
+from scipy.spatial import cKDTree
+from shapely.geometry import Point, Polygon
 
 from scan2plan.cir import Measurement, Opening, Plane, Room, Surface
 from scan2plan.cir.measure import Tier
@@ -116,37 +118,230 @@ def camera_travel_m(cam_xyz: NDArray[np.float64]) -> float:
     return float(np.sum(np.hypot(d[:, 0], d[:, 1])))
 
 
-def stage1_observed(
+def _grid_cells(
+    xz: NDArray[np.float64], bin_m: float
+) -> tuple[list[list[float]], set[tuple[int, int]]]:
+    """Deduplicate XZ points to occupied grid cells: ([[cx,cz],...], {(ix,iz),...}).
+
+    Pure binning - no hull, buffer, snapping or interpolation (plan 04i stage 1).
+    """
+    if xz.shape[0] == 0:
+        return [], set()
+    ix = np.floor(xz[:, 0] / bin_m).astype(np.int64)
+    iz = np.floor(xz[:, 1] / bin_m).astype(np.int64)
+    keys = set(zip(ix.tolist(), iz.tolist(), strict=True))
+    cells = [[(i + 0.5) * bin_m, (j + 0.5) * bin_m] for i, j in sorted(keys)]
+    return cells, keys
+
+
+def _capped(cells: list, cap: int) -> list:
+    """Deterministic subsample of a cell list to at most ``cap`` entries."""
+    if len(cells) <= cap:
+        return cells
+    step = int(math.ceil(len(cells) / cap))
+    return cells[::step]
+
+
+def _carve_free_space(
+    cam_xyz: NDArray[np.float64], points: NDArray[np.float64], bin_m: float, stride: int
+) -> set[tuple[int, int]]:
+    """Optional ray carve: mark free cells between the nearest camera and each point."""
+    cam = cam_xyz[:, [0, 2]]
+    if cam.shape[0] == 0 or points.shape[0] == 0:
+        return set()
+    tree = cKDTree(cam)
+    pts = points[::stride]
+    cells: set[tuple[int, int]] = set()
+    for p in pts[:, [0, 2]]:
+        _, i = tree.query(p)
+        c0 = cam[int(i)]
+        seg = p - c0
+        length = float(np.hypot(seg[0], seg[1]))
+        n = int(length / bin_m)
+        for t in np.linspace(0.0, 1.0, n + 1):
+            q = c0 + t * seg
+            cells.add((int(math.floor(q[0] / bin_m)), int(math.floor(q[1] / bin_m))))
+    return cells
+
+
+def _keys_to_cells(keys: set[tuple[int, int]], bin_m: float) -> list[list[float]]:
+    """Integer grid keys -> sorted cell centres ([[cx, cz], ...])."""
+    return [[(i + 0.5) * bin_m, (j + 0.5) * bin_m] for i, j in sorted(keys)]
+
+
+def _extent_m(keys: set[tuple[int, int]], bin_m: float) -> dict[str, list[float]] | None:
+    """Bounding extents (metres) of a set of integer cells."""
+    if not keys:
+        return None
+    arr = np.array(sorted(keys), dtype=np.float64) * bin_m
+    return {
+        "x_m": [round(float(arr[:, 0].min()), 3), round(float(arr[:, 0].max() + bin_m), 3)],
+        "z_m": [round(float(arr[:, 1].min()), 3), round(float(arr[:, 1].max() + bin_m), 3)],
+    }
+
+
+def _evidence_stats(
+    cam_xyz: NDArray[np.float64],
+    floor_keys: set[tuple[int, int]],
+    wall_keys: set[tuple[int, int]],
+    bin_m: float,
+) -> dict[str, object]:
+    """Report-only statistics (never fail): camera inside evidence + extents (04i)."""
+    cam = cam_xyz[:, [0, 2]]
+    if cam.shape[0] == 0:
+        return {"camera_inside_fraction": None}
+    evidence = floor_keys | wall_keys
+    neigh = [(dx, dz) for dx in (-1, 0, 1) for dz in (-1, 0, 1)]
+    cam_keys = {(int(math.floor(x / bin_m)), int(math.floor(z / bin_m))) for x, z in cam}
+    if evidence:
+        inside = sum(
+            1 for k in cam_keys if any((k[0] + n[0], k[1] + n[1]) in evidence for n in neigh)
+        )
+        frac: float | None = inside / len(cam_keys)
+    else:
+        frac = 0.0
+    ev_ext = _extent_m(evidence, bin_m)
+    cam_ext = _extent_m(cam_keys, bin_m)
+    exceeds: bool | None = None
+    if ev_ext and cam_ext:
+        exceeds = (
+            cam_ext["x_m"][0] < ev_ext["x_m"][0] - bin_m
+            or cam_ext["x_m"][1] > ev_ext["x_m"][1] + bin_m
+            or cam_ext["z_m"][0] < ev_ext["z_m"][0] - bin_m
+            or cam_ext["z_m"][1] > ev_ext["z_m"][1] + bin_m
+        )
+    return {
+        "camera_inside_fraction": round(float(frac), 4) if frac is not None else None,
+        "evidence_extent_m": ev_ext,
+        "camera_extent_m": cam_ext,
+        "camera_exceeds_evidence": exceeds,
+    }
+
+
+#: Cap on cells serialised per layer, so the evidence sidecar stays readable.
+EVIDENCE_LAYER_CAP = 60000
+
+
+def _evidence_layers(
     points: NDArray[np.float64],
     cam_xyz: NDArray[np.float64],
-    theta_rad: float,
+    floor_y: float,
+    ceil_y: float | None,
     params: wm.WallParams,
+    cfg: Config,
+) -> tuple[
+    list[dict[str, object]],
+    list[list[float]],
+    set[tuple[int, int]],
+    set[tuple[int, int]],
+    float,
+]:
+    """Wall cells (+support), floor cells, floor/wall integer keys and the bin (04i)."""
+    o = cfg.outline
+    bin_m = o.evidence_bin_m
+    wcells, wcounts = wm.wall_cells_with_support(points, floor_y, ceil_y, params)
+    wall_layer: list[dict[str, object]] = [
+        {"x": round(float(cx), 3), "z": round(float(cz), 3), "support": int(s)}
+        for (cx, cz), s in zip(wcells.tolist(), wcounts.tolist(), strict=True)
+    ]
+    wall_keys = {
+        (int(math.floor(cx / bin_m)), int(math.floor(cz / bin_m))) for cx, cz in wcells.tolist()
+    }
+    slab = points[np.abs(points[:, 1] - floor_y) <= o.floor_band_m]
+    floor_cells, floor_keys = _grid_cells(slab[:, [0, 2]], bin_m)
+    return wall_layer, floor_cells, floor_keys, wall_keys, bin_m
+
+
+def _camera_path_xz(cam_xyz: NDArray[np.float64], max_pts: int = 200) -> list[list[float]]:
+    """Downsampled camera path (XZ) for the stage-1 evidence SVG."""
+    if cam_xyz.shape[0] == 0:
+        return []
+    step = max(1, cam_xyz.shape[0] // max_pts)
+    return [[float(a), float(b)] for a, b in cam_xyz[::step][:, [0, 2]]]
+
+
+def observed_evidence(
+    points: NDArray[np.float64],
+    cam_xyz: NDArray[np.float64],
+    floor_y: float,
+    ceil_y: float | None,
+    params: wm.WallParams,
+    cfg: Config,
+    points_unfiltered: NDArray[np.float64] | None = None,
 ) -> dict[str, object]:
-    """Outline of *everything seen* (furniture in, low-confidence already dropped)."""
-    xz = points[:, [0, 2]]
-    travel = camera_travel_m(cam_xyz)
-    fp = extract_footprint(xz, theta_rad)
+    """Stage 1: pure observed evidence as layers - no hull/buffer/snap/interp (04i).
+
+    Layers: wall cells (with per-cell support), floor cells, camera free-space
+    (path, optionally ray-carved). Unknown stays blank. Reports statistics only
+    (camera-inside fraction, extents) and never fails. An *unfiltered* layer
+    (range/confidence gates off) is saved for comparison.
+    """
+    o = cfg.outline
     warnings: list[str] = []
-    if fp is None or fp.ring_local.shape[0] < 3:
-        polygon: list[list[float]] = []
-        area = 0.0
-        warnings.append("stage1: no coherent observed outline")
-    else:
-        world = rotate2d(fp.ring_local, -theta_rad)
-        polygon = [[float(a), float(b)] for a, b in world]
-        area = float(fp.area_m2)
-    # Downsampled camera path (for the stage-1 SVG). ~200 points keeps it compact.
-    step = max(1, cam_xyz.shape[0] // 200)
-    cam_ds = cam_xyz[::step][:, [0, 2]]
-    return {
-        "points": int(points.shape[0]),
-        "camera_travel_m": round(travel, 3),
-        "params": {"outline_bin_m": 0.10, "min_height_bins": params.min_height_bins},
-        "polygon_xz": polygon,
-        "camera_xz": [[float(a), float(b)] for a, b in cam_ds],
-        "area_m2": round(area, 3),
+    wall_layer, floor_cells, floor_keys, wall_keys, bin_m = _evidence_layers(
+        points, cam_xyz, floor_y, ceil_y, params, cfg
+    )
+    free_keys: set[tuple[int, int]] = set()
+    if cam_xyz.shape[0]:
+        _, free_keys = _grid_cells(cam_xyz[:, [0, 2]], bin_m)
+    if o.ray_carve:
+        free_keys |= _carve_free_space(cam_xyz, points, bin_m, o.free_stride)
+    free_cells = _keys_to_cells(free_keys, bin_m)
+    stats = _evidence_stats(cam_xyz, floor_keys, wall_keys, bin_m)
+
+    unfiltered: dict[str, object] | None = None
+    if points_unfiltered is not None:
+        uw, ufc, _ufk, _uwk, _ = _evidence_layers(
+            points_unfiltered, cam_xyz, floor_y, ceil_y, params, cfg
+        )
+        unfiltered = {
+            "wall_cells": _capped(uw, EVIDENCE_LAYER_CAP),
+            "floor_cells": _capped(ufc, EVIDENCE_LAYER_CAP),
+            "counts": {"wall_cells": len(uw), "floor_cells": len(ufc)},
+            "note": "range/confidence gates OFF (raw evidence before stage-1 filters)",
+        }
+
+    capped = False
+
+    def _cap(cells: list) -> list:
+        nonlocal capped
+        out = _capped(cells, EVIDENCE_LAYER_CAP)
+        capped = capped or len(out) < len(cells)
+        return out
+
+    payload: dict[str, object] = {
+        "name": "observed evidence",
+        "params": {
+            "confidence_min": o.confidence_min,
+            "max_range_m": o.max_range_m,
+            "evidence_bin_m": bin_m,
+            "floor_band_m": o.floor_band_m,
+            "height_bins": params.height_bins,
+            "min_height_bins": params.min_height_bins,
+            "wall_min_m": params.wall_min_m,
+            "wall_max_m": params.wall_max_m,
+            "wall_cell_m": params.cell_m,
+            "ray_carve": o.ray_carve,
+        },
+        "camera_travel_m": round(camera_travel_m(cam_xyz), 3),
+        "camera_xz": _camera_path_xz(cam_xyz),
+        "layers": {
+            "wall_cells": _cap(wall_layer),
+            "floor_cells": _cap(floor_cells),
+            "camera_free_space": _cap(free_cells),
+        },
+        "layer_counts": {
+            "wall_cells": len(wall_layer),
+            "floor_cells": len(floor_cells),
+            "camera_free_space": len(free_cells),
+        },
+        "statistics": stats,
+        "unfiltered": unfiltered,
         "warnings": warnings,
     }
+    if capped:
+        warnings.append(f"evidence layers capped at {EVIDENCE_LAYER_CAP} cells for size")
+    return payload
 
 
 def _component_bbox_polygon(
@@ -266,6 +461,22 @@ def _snap_val(v: float, lines: list[float], tol: float) -> float:
     return best if abs(v - best) <= tol else v
 
 
+def _snap_ring(
+    uv: NDArray[np.float64], lines_u: list[float], lines_v: list[float], tol: float
+) -> NDArray[np.float64]:
+    """Snap each ring coordinate to the nearest wall line within ``tol`` (plan 04i).
+
+    Works on arbitrary (including diagonal) rings, unlike axis-detection: a vertex
+    near a wall line moves onto it, a genuine notch vertex (far from every line)
+    is left where it is, so concavities survive.
+    """
+    out = np.array(uv, dtype=np.float64, copy=True)
+    for i in range(out.shape[0]):
+        out[i, 0] = _snap_val(float(out[i, 0]), lines_u, tol)
+        out[i, 1] = _snap_val(float(out[i, 1]), lines_v, tol)
+    return out
+
+
 def _orthogonalize_uv(
     uv: NDArray[np.float64], lines_u: list[float], lines_v: list[float], tol: float
 ) -> NDArray[np.float64]:
@@ -322,48 +533,109 @@ def _ccw(ring: NDArray[np.float64]) -> NDArray[np.float64]:
     return ring[::-1] if area2 < 0 else ring
 
 
+def _edge_support_span(
+    uv: NDArray[np.float64], axis: int, pos: float, tol: float = 0.06
+) -> tuple[float, float] | None:
+    """Observed support span (min,max along the other axis) near a wall line."""
+    if uv.shape[0] == 0:
+        return None
+    near = uv[np.abs(uv[:, axis] - pos) <= tol]
+    if near.shape[0] == 0:
+        return None
+    other = near[:, 1 - axis]
+    return float(other.min()), float(other.max())
+
+
+def _line_extrapolation(span: tuple[float, float] | None, coord: float) -> float | None:
+    """How far ``coord`` lies beyond a support span (0 if inside, None if unknown)."""
+    if span is None:
+        return None
+    lo, hi = span
+    if coord < lo:
+        return lo - coord
+    if coord > hi:
+        return coord - hi
+    return 0.0
+
+
 def stage3_outline(
-    observed_xz: list[list[float]],
+    floor_xz: NDArray[np.float64] | None,
+    uv_cells: NDArray[np.float64] | None,
     theta_rad: float,
     walls: dict[str, float | None],
-    params: wm.WallParams,
     o: Config,
-) -> tuple[list[list[float]], str, bool]:
-    """Snap the observed outline to the fitted wall lines; merge steps; 4..max_edges.
+) -> tuple[list[list[float]], str, bool, list[dict[str, object]]]:
+    """Build the rectilinear final outline from wall items + observed floor (plan 04i).
 
-    Returns (world polygon, method, rectangular_fallback). Concavity is preserved:
-    edges that sit on a wall line are kept as steps (>= ``min_step_m``).
+    Stage 3 may interpolate/snap (stage 1 may not). A side with no fitted wall line
+    is **inferred** from the extreme observed wall cell on that side. The room is
+    rectilinear: the observed floor outline is orthogonalised and snapped to the
+    fitted wall lines (so concavities/L-shapes survive), then capped to
+    ``max_edges``. Each corner is ``observed`` when an observed wall cell lies
+    within ``infer_tol_m``, else ``inferred`` by extending adjacent wall lines -
+    with an interval that grows with the distance to the nearest evidence.
+    Returns (world polygon, method, rectangular_fallback, corners).
     """
     cfg_o = o.outline
-    rect_uv = None
-    if None not in walls.values():
-        rect_uv = np.array(
-            [
-                [walls["u_min"], walls["v_min"]],
-                [walls["u_max"], walls["v_min"]],
-                [walls["u_max"], walls["v_max"]],
-                [walls["u_min"], walls["v_max"]],
-            ],
-            dtype=np.float64,
-        )
-    if not observed_xz or rect_uv is None:
-        if rect_uv is None:
-            return [], "unavailable", True
-        world = rotate2d(rect_uv, -theta_rad)
-        return [[float(a), float(b)] for a, b in world], "rectangle_fallback", True
+    uv = uv_cells if uv_cells is not None else np.zeros((0, 2))
+    specs = (("u_min", 0, -1), ("u_max", 0, 1), ("v_min", 1, -1), ("v_max", 1, 1))
+    lines: dict[str, float] = {}
+    side_src: dict[str, str] = {}
+    for name, axis, sign in specs:
+        val = walls.get(name)
+        if val is not None:
+            lines[name] = float(val)
+            side_src[name] = "wall"
+        elif uv.shape[0]:
+            coord = uv[:, axis]
+            lines[name] = float(coord.min() if sign < 0 else coord.max())
+            side_src[name] = "inferred"
+        else:
+            return [], "unavailable", True, []
+    u0, u1 = lines["u_min"], lines["u_max"]
+    v0, v1 = lines["v_min"], lines["v_max"]
+    if u1 - u0 < 0.3 or v1 - v0 < 0.3:
+        return [], "unavailable", True, []
+    diagonal = float(math.hypot(u1 - u0, v1 - v0))
 
-    uv = rotate2d(np.asarray(observed_xz, dtype=np.float64), theta_rad)
-    lines_u = [float(walls["u_min"]), float(walls["u_max"])]  # type: ignore[arg-type]
-    lines_v = [float(walls["v_min"]), float(walls["v_max"])]  # type: ignore[arg-type]
-    ring = _orthogonalize_uv(uv, lines_u, lines_v, cfg_o.min_step_m)
-    ring = merge_collinear(ring, min_edge_m=cfg_o.min_step_m, chord_tol_m=cfg_o.min_step_m * 0.5)
-    ring = _cap_edges(ring, cfg_o.max_edges)
-    if ring.shape[0] < 4 or float(abs(_poly_area(ring))) < 0.5:
-        world = rotate2d(rect_uv, -theta_rad)
-        return [[float(a), float(b)] for a, b in world], "rectangle_fallback", True
-    ring = _ccw(ring)
+    # Observed concave outline (from stage-1 floor evidence), rectified + snapped.
+    ring: NDArray[np.float64] | None = None
+    if floor_xz is not None and floor_xz.shape[0] >= 4:
+        fp = extract_footprint(floor_xz, theta_rad)
+        if fp is not None and fp.ring_local.shape[0] >= 3:
+            r = _snap_ring(fp.ring_local, [u0, u1], [v0, v1], cfg_o.min_step_m)
+            r = merge_collinear(r, min_edge_m=cfg_o.min_step_m, chord_tol_m=cfg_o.min_step_m)
+            r = _cap_edges(r, cfg_o.max_edges)
+            if r.shape[0] >= 4 and abs(_poly_area(r)) >= 0.5:
+                ring = _ccw(r)
+    rect_fallback = ring is None
+    if ring is None:
+        ring = np.array([[u0, v0], [u1, v0], [u1, v1], [u0, v1]], dtype=np.float64)
+
+    tree = cKDTree(uv) if uv.shape[0] else None
+    c, s = float(np.cos(theta_rad)), float(np.sin(theta_rad))
+    corners: list[dict[str, object]] = []
+    for cu, cv in ring.tolist():
+        dist = float(tree.query([cu, cv])[0]) if tree is not None else diagonal
+        extrap = min(dist, diagonal)
+        provenance = "observed" if dist <= cfg_o.infer_tol_m else "inferred"
+        corners.append(
+            {
+                "uv": [round(cu, 4), round(cv, 4)],
+                "xz": [round(cu * c - cv * s, 4), round(cu * s + cv * c, 4)],
+                "provenance": provenance,
+                "extrapolation_m": round(extrap, 4),
+                "ci_half_m": round(cfg_o.inferred_ci_per_m * extrap, 4),
+            }
+        )
     world = rotate2d(ring, -theta_rad)
-    return [[float(a), float(b)] for a, b in world], "snapped_observed", False
+    if rect_fallback:
+        method = (
+            "wall_lines" if all(v == "wall" for v in side_src.values()) else "wall_lines_inferred"
+        )
+    else:
+        method = "wall_lines+observed_floor"
+    return [[float(a), float(b)] for a, b in world], method, rect_fallback, corners
 
 
 def _poly_area(ring: NDArray[np.float64]) -> float:
@@ -513,6 +785,21 @@ def _detect_edge_openings(
     return openings
 
 
+def _camera_inside_fraction(
+    poly_xz: list[list[float]], cam_xyz: NDArray[np.float64]
+) -> float | None:
+    """Fraction of camera positions inside the final polygon (plan 04i stage 3).
+
+    This is where the "camera must be inside the room" check lives - an assertion
+    about the *final* polygon, not about stage-1 evidence.
+    """
+    if len(poly_xz) < 3 or cam_xyz.shape[0] == 0:
+        return None
+    pg = Polygon(poly_xz)
+    inside = sum(1 for x, z in cam_xyz[:, [0, 2]] if pg.contains(Point(float(x), float(z))))
+    return inside / cam_xyz.shape[0]
+
+
 def build_outline(
     points: NDArray[np.float64],
     cam_xyz: NDArray[np.float64],
@@ -523,6 +810,7 @@ def build_outline(
     cfg: Config,
     room_id: str = "room_0",
     name: str | None = None,
+    points_unfiltered: NDArray[np.float64] | None = None,
 ) -> OutlineResult:
     """Run stages 1-3 and assemble the CIR room/surfaces/openings/measures."""
     p = wall_params_from_config(cfg)
@@ -538,7 +826,7 @@ def build_outline(
     warnings = [str(w) for w in fit.get("warnings", [])]  # type: ignore[union-attr]
     theta = math.radians(float(fit.get("theta_deg", 0.0)))
 
-    st1 = stage1_observed(points, cam_xyz, theta, p)
+    st1 = observed_evidence(points, cam_xyz, floor_y, ceil_y, p, cfg, points_unfiltered)
     warnings += [str(w) for w in st1["warnings"]]  # type: ignore[union-attr]
     regions, counts, occluded_sides = stage2_classify(
         points, theta, {**fit, "floor_y": floor_y}, p, cfg
@@ -555,7 +843,9 @@ def build_outline(
             f"suspected_occluder on {side}: {rule} "
             "(wall kept, state=partially_occluded, interval widened)"
         )
-    poly, method, rect_fallback = stage3_outline(st1["polygon_xz"], theta, walls, p, cfg)  # type: ignore[arg-type]
+    slab = points[np.abs(points[:, 1] - floor_y) <= cfg.outline.floor_band_m]
+    floor_xz = slab[:, [0, 2]]
+    poly, method, rect_fallback, corners = stage3_outline(floor_xz, uv_cells, theta, walls, cfg)  # type: ignore[arg-type]
     if not poly:
         raise ValueError("room outline unavailable (too few wall cells)")
 
@@ -625,6 +915,16 @@ def build_outline(
         else:
             state = "observed"
         half = _length_half_width(side if side != "step" else "u_min", length, fit, cfg, state)
+        # Provenance (plan 04i stage 3): observed if both adjacent corners are
+        # observed, else inferred; the interval grows with the extrapolated distance.
+        extrap_max = 0.0
+        provs: list[str] = []
+        if corners and len(corners) == n:
+            for ci in (i, (i + 1) % n):
+                provs.append(str(corners[ci]["provenance"]))
+                extrap_max = max(extrap_max, float(corners[ci]["extrapolation_m"]))
+        provenance = "inferred" if (provs and any(p == "inferred" for p in provs)) else "observed"
+        half = math.hypot(half, cfg.outline.inferred_ci_per_m * extrap_max)
         wall_id = f"{room_id}_wall_{len(surfaces) + 1}"
         surfaces.append(
             Surface(
@@ -645,6 +945,8 @@ def build_outline(
                 "id": wall_id,
                 "side": side,
                 "state": state,
+                "provenance": provenance,
+                "extrapolation_m": round(extrap_max, 4),
                 "coverage": cov,
                 "length_m": round(length, 4),
                 "ci_half_m": round(half, 4),
@@ -689,6 +991,17 @@ def build_outline(
         openings.extend(got)
         idx += len(got)
 
+    # Relocated "camera must be inside the room" assertion (plan 04i req. 4).
+    camera_inside_frac = _camera_inside_fraction(poly, cam_xyz)
+    if camera_inside_frac is not None and camera_inside_frac < 0.99:
+        msg = (
+            f"camera path not fully inside the final polygon "
+            f"({camera_inside_frac:.0%} inside) - stage-3 assertion fired"
+        )
+        warnings.append(msg)
+        if cfg.outline.assert_camera_inside:
+            raise ValueError(msg)
+
     stage2 = {
         "regions": [
             {
@@ -710,6 +1023,9 @@ def build_outline(
         "area_m2": round(area, 3),
         "n_edges": int(n),
         "walls": edge_meta,
+        "corners": corners,
+        "camera_inside_fraction": camera_inside_frac,
+        "inferred_walls": sum(1 for w in edge_meta if w.get("provenance") == "inferred"),
         "occluded_sides": sorted(occluded_sides),
         "warnings": warnings,
     }
