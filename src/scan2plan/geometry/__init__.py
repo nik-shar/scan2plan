@@ -1,38 +1,24 @@
-"""Stage S3: point cloud -> rooms/surfaces/openings (plan 04c/04h/04i)."""
+"""Geometry: stage-1 evidence + shared primitives (plan 04i).
+
+Stage 2/3 (outline tracing, classification, snapping) were moved to
+``archive/old_stage23/`` for redesign. ``room_fit`` is kept as an unused reference.
+"""
 
 from __future__ import annotations
 
-from scan2plan.geometry.extract import RoomGeometry, estimate_orientation, extract_room
-from scan2plan.geometry.footprint import (
-    Footprint2D,
-    extract_footprint,
-    merge_collinear,
-    occupancy_grid,
+from scan2plan.geometry.evidence import (
+    EVIDENCE_LAYER_CAP,
+    camera_travel_m,
+    observed_evidence,
+    wall_cells_with_support,
 )
 from scan2plan.geometry.planes import HorizontalPlane, horizontal_planes
-from scan2plan.geometry.room_outline import (
-    OutlineResult,
-    Region,
-    WallState,
-    build_outline,
-    wall_params_from_config,
-)
-from scan2plan.geometry.wall_model import WallParams
 
 __all__ = [
-    "Footprint2D",
+    "EVIDENCE_LAYER_CAP",
     "HorizontalPlane",
-    "OutlineResult",
-    "Region",
-    "RoomGeometry",
-    "WallParams",
-    "WallState",
-    "build_outline",
-    "estimate_orientation",
-    "extract_footprint",
-    "extract_room",
+    "camera_travel_m",
     "horizontal_planes",
-    "merge_collinear",
-    "occupancy_grid",
-    "wall_params_from_config",
+    "observed_evidence",
+    "wall_cells_with_support",
 ]
