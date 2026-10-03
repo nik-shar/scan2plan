@@ -13,6 +13,12 @@ from scan2plan.geometry.evidence import (
     observed_evidence,
     wall_cells_with_support,
 )
+from scan2plan.geometry.invariants import (
+    Invariant,
+    check_stage3_invariants,
+    inscribed_radius,
+    invariants_failed,
+)
 from scan2plan.geometry.planes import HorizontalPlane, horizontal_planes
 from scan2plan.geometry.rooms import (
     RoomParams,
@@ -49,6 +55,7 @@ from scan2plan.geometry.walls import (
 __all__ = [
     "AXES",
     "EVIDENCE_LAYER_CAP",
+    "Invariant",
     "KIND_OPEN_SPACE",
     "HorizontalPlane",
     "Segment",
@@ -64,12 +71,15 @@ __all__ = [
     "build_stage3",
     "build_wall_graph",
     "camera_travel_m",
+    "check_stage3_invariants",
     "complete_walls",
     "completion_params_from_config",
     "dense_blob_mask",
     "explained_mask",
     "graph_params_from_config",
     "horizontal_planes",
+    "inscribed_radius",
+    "invariants_failed",
     "merge_wall_pieces",
     "observed_evidence",
     "reconstruct_walls",

@@ -44,6 +44,25 @@ reproducible. `scan2plan run` writes `stage3_rooms.json`, a populated schema-val
   with width + type (`door`), host wall, and the two rooms it joins; adjacency from
   those openings.
 
+## Invariants (run after every capture — fail loudly)
+
+`scan2plan.geometry.invariants.check_stage3_invariants` runs after stage 3 on every
+`run` / `ablate`; each invariant prints its values and a failure exits non-zero
+(the plan is still written for inspection). Skipped (`ok=null`) only when no rooms
+were computed.
+
+| Invariant | Rule | Config |
+|---|---|---|
+| `no_overlap` | room polygons simple; total pairwise intersection area <= tol | `overlap_tol_m2` |
+| `min_room` | every room area >= A and inscribed-circle radius >= R | `min_room_area_m2`, `min_room_inradius_m` |
+| `coverage` | camera-visited cells inside a room / opening / enclosed region >= share | `coverage_min` |
+| `camera_inside` | every camera position in a room, an opening or an `open_space` | — |
+| `render_clip` | walls drawn only as clipped graph edges; no span beyond its end nodes | `node_tol_m`, `node_merge_m` |
+| `ceiling_sanity` | `measured` needs >= N cells, >= 20% footprint, height in 2.1-4.0 m; spread > 0.3 m flags `inconsistent_ceiling` | `ceiling_min_cells`, `ceiling_min_footprint_frac`, `ceiling_height_low_m`, `ceiling_height_high_m`, `ceiling_spread_max_m` |
+
+The per-invariant values are recorded in `stage3_rooms.json` under `invariants`
+(and the stage-1 floor/ceiling reference under `stage1_reference`).
+
 ## Thresholds (all in the I4 `outline` block — uncalibrated, plan 04f/08)
 
 | Key | Default | Why |
@@ -60,6 +79,15 @@ reproducible. `scan2plan run` writes `stage3_rooms.json`, a populated schema-val
 | `ceiling_bin_m` | 0.02 | ceiling histogram bin |
 | `ceiling_prior_low_m` / `_high_m` | 2.40 / 2.70 | prior interval when the ceiling is not seen |
 | `min_step_m` | 0.30 | floor-edge snap grid (staircase collapse) |
+| `min_room_area_m2` | 2.00 | invariant: smallest accepted room |
+| `min_room_inradius_m` | 0.60 | invariant: smallest accepted room width |
+| `coverage_min` | 0.95 | invariant: camera cells inside regions |
+| `ceiling_min_cells` | 200 | invariant: min near cells for a `measured` ceiling |
+| `ceiling_min_footprint_frac` | 0.20 | invariant: min footprint share for a `measured` ceiling |
+| `ceiling_height_low_m` / `_high_m` | 2.10 / 4.00 | invariant: plausible measured band |
+| `ceiling_spread_max_m` | 0.30 | invariant: across-room spread flag |
+| `ceiling_global_tol_m` | 0.30 | per-room peak vs the stage-1 global ceiling |
+| `overlap_tol_m2` | 0.0001 | invariant: total pairwise room overlap (1 cm²) |
 
 ## Known limitations (honest; rule 7)
 

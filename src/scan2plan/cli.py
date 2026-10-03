@@ -24,6 +24,7 @@ from scan2plan.cir import CIR, Measurement, Opening, Room, Surface
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import Config, load_config
 from scan2plan.geometry import observed_evidence, reconstruct_walls
+from scan2plan.geometry.invariants import check_stage3_invariants, invariants_failed
 from scan2plan.geometry.planes import horizontal_planes
 from scan2plan.geometry.rooms import build_stage3
 from scan2plan.ingest import ingest_capture, load_bundle
@@ -264,6 +265,7 @@ def _stage3_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
     stage2 = json.loads(stage2_path.read_text())
     points: np.ndarray | None = None
     floor_y = 0.0
+    ceil_y: float | None = None
     if cir.recon is not None and cir.recon.points_ref is not None:
         points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
         planes = horizontal_planes(points[:, 1]) if points.size else []
@@ -272,10 +274,48 @@ def _stage3_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
             if planes
             else (float(np.percentile(points[:, 1], 2)) if points.size else 0.0)
         )
+        ceil_y = planes[1].height_m if len(planes) > 1 else None
     stage3 = build_stage3(stage1, stage2, cfg, floor_y=floor_y, points_xyz=points)
+    invariants = check_stage3_invariants(
+        stage1, stage2, stage3, cfg, points_xyz=points, floor_y=floor_y
+    )
+    stage3["invariants"] = [
+        {"name": i.name, "ok": i.ok, "detail": i.detail, "values": i.values} for i in invariants
+    ]
+    stage3["invariants_failed"] = len(invariants_failed(invariants))
+    stage3["stage1_reference"] = {
+        "floor_y_m": round(floor_y, 4),
+        "ceiling_y_m": round(ceil_y, 4) if ceil_y is not None else None,
+        "room_height_m": round(ceil_y - floor_y, 4) if ceil_y is not None else None,
+    }
     (out_dir / "stage3_rooms.json").write_text(json.dumps(stage3, indent=2, sort_keys=True) + "\n")
     render_plan_svg(stage3, out_dir / "plan.svg", title=f"{cir.session.id} - final plan")
     return stage3
+
+
+def _report_invariants(stage3: dict[str, object] | None) -> None:
+    """Print every stage-3 invariant with its values (plan 04i fix loop, section 1)."""
+    if stage3 is None:
+        return
+    for inv in stage3.get("invariants") or []:  # type: ignore[union-attr]
+        assert isinstance(inv, dict)
+        ok = inv.get("ok")
+        mark = "PASS" if ok else ("SKIP" if ok is None else "FAIL")
+        color = {"PASS": typer.colors.GREEN, "SKIP": typer.colors.YELLOW, "FAIL": typer.colors.RED}[
+            mark
+        ]
+        typer.secho(
+            f"  invariant {mark} {inv.get('name')}: {inv.get('detail')}", fg=color, err=True
+        )
+        if ok is False and inv.get("values"):
+            typer.secho(f"    values: {inv.get('values')}", fg=typer.colors.RED, err=True)
+    failed = int(stage3.get("invariants_failed") or 0)  # type: ignore[arg-type]
+    if failed:
+        typer.secho(
+            f"  STAGE-3 INVARIANTS FAILED ({failed}) - plan.json is written for inspection only",
+            fg=typer.colors.RED,
+            err=True,
+        )
 
 
 def _cir_from_stage3(cir: CIR, stage3: dict[str, object]) -> None:
@@ -493,8 +533,11 @@ def run(
     typer.echo(f"  wrote {out_dir / 'stage1_observed.svg'}")
     _report_stage2(stage2, out_dir)
     _report_stage3(stage3, out_dir)
+    _report_invariants(stage3)
     typer.echo(f"  wrote {plan_path}")
     typer.echo("  note: stitch/damage/calibration (S4-S8) are pending; rooms are stage 3.")
+    if stage3 is not None and int(stage3.get("invariants_failed") or 0):
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -562,6 +605,7 @@ def ablate(
     _report_stage2(_stage2_artifacts(cir, out_dir, cfg), out_dir)
     stage3 = _stage3_artifacts(cir, out_dir, cfg)
     _report_stage3(stage3, out_dir)
+    _report_invariants(stage3)
     if stage3 is not None:
         _write_plan(cir, stage3, out_dir)
     else:
@@ -572,6 +616,8 @@ def ablate(
         fg=typer.colors.YELLOW,
         err=True,
     )
+    if stage3 is not None and int(stage3.get("invariants_failed") or 0):
+        raise typer.Exit(code=1)
 
 
 @app.command()

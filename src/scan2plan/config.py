@@ -112,6 +112,22 @@ class Outline(BaseModel):
     ceiling_bin_m: float = Field(default=0.02, gt=0.0)  # ceiling histogram bin
     ceiling_prior_low_m: float = Field(default=2.40, gt=0.0)  # prior interval (no ceiling)
     ceiling_prior_high_m: float = Field(default=2.70, gt=0.0)  # prior interval (no ceiling)
+    # --- Stage-3 invariant gates (plan 04i fix-loop section 1; uncalibrated). ---
+    # Every invariant prints its values and fails loudly when violated.
+    min_room_area_m2: float = Field(default=2.00, gt=0.0)  # a room is at least this big
+    min_room_inradius_m: float = Field(default=0.60, ge=0.0)  # ...and this wide inside
+    coverage_min: float = Field(default=0.95, ge=0.0, le=1.0)  # camera cells inside regions
+    ceiling_min_cells: int = Field(default=200, ge=1)  # measured ceiling: min near cells
+    ceiling_min_footprint_frac: float = Field(
+        default=0.20, ge=0.0, le=1.0
+    )  # ...covering this share of the room footprint
+    ceiling_height_low_m: float = Field(default=2.10, gt=0.0)  # plausible measured band
+    ceiling_height_high_m: float = Field(default=4.00, gt=0.0)  # plausible measured band
+    ceiling_spread_max_m: float = Field(default=0.30, ge=0.0)  # across-room spread flag
+    ceiling_global_tol_m: float = Field(
+        default=0.30, ge=0.0
+    )  # per-room peak vs the stage-1 global ceiling
+    overlap_tol_m2: float = Field(default=0.0001, ge=0.0)  # total pairwise room overlap (1 cm^2)
 
 
 class Config(BaseModel):

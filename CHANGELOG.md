@@ -4,6 +4,25 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — stage-3 invariant checks (fail loudly)
+- New `src/scan2plan/geometry/invariants.py`: `check_stage3_invariants` runs after
+  every `run` / `ablate` and prints six invariants with their values, exiting
+  non-zero on violation (`plan.json` is still written for inspection; skipped when
+  no rooms are computed). `no_overlap` (simple polygons, total pairwise area <=
+  `overlap_tol_m2`), `min_room` (area/inradius), `coverage` (camera cells inside
+  rooms/openings/enclosed), `camera_inside`, `render_clip` (wall spans clipped to
+  graph nodes), `ceiling_sanity` (cells + footprint + height band; across-room
+  spread flags `inconsistent_ceiling`). Values are recorded in `stage3_rooms.json`
+  (`invariants`, `stage1_reference`).
+- New append-only I4 keys (uncalibrated): `min_room_area_m2`, `min_room_inradius_m`,
+  `coverage_min`, `ceiling_min_cells`, `ceiling_min_footprint_frac`,
+  `ceiling_height_low_m`, `ceiling_height_high_m`, `ceiling_spread_max_m`,
+  `ceiling_global_tol_m`, `overlap_tol_m2`. See `docs/plans/04i-stage3.md`.
+- Diagnosis on the three seeds: 9 of 9 room polygons are self-intersecting (bow-tie),
+  rooms as small as 0.27 m² survive, coverage 0.09-0.73 (camera cells leak into
+  wall barriers), walls over-extend their graph nodes by 3.5-20 m, and `2.01 m`
+  ceilings are accepted from furniture tops. Tests `tests/test_invariants.py` (10).
+
 ### 04i — stage 3: rooms, closed polygons, per-room measurements
 - New `src/scan2plan/geometry/rooms.py::build_stage3` (pure geometry, deterministic):
   greedy cost-ordered **closure** (`closure_cost`/`plan_score`, camera-crossing
