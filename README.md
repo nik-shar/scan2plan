@@ -6,14 +6,16 @@ interval on every measurement.
 
 Applied AI Engineer case study submission (Aug 2026).
 
-> **Status: M3–M4 (single-room geometry + stitch/drift).** Repo scaffold, config (I4),
-> utilities, CLI (I5), frozen CIR (I2), published schema (I3), and the confirmed B-0
-> depth-unit check are in place. `scan2plan run` (LiDAR tier) executes S1–S4 + S9:
-> ingest, LiDAR recon, single-room geometry (concave polygonal footprint → walls/
-> openings/area/ceiling, plan `04h`), SE(2) pose-graph stitch with loop closure, and
-> an SVG plan — emitting a schema-valid `plan.json`. `scan2plan ablate` emits the
-> G-DRIFT loop-closure on/off footprints from the same code path. Damage/scope/
-> calibration stages (S5–S8) land at M5+. See `docs/plans/`.
+> **Status: Stage 1 frozen (`stage1-frozen`); stages 2+ are being redesigned.**
+> Repo scaffold, config (I4), utilities, CLI (I5), frozen CIR (I2), published schema
+> (I3), and the confirmed B-0 depth-unit check are in place. Stage 1 is the
+> **observed-evidence** layer (`scan2plan run` (LiDAR tier) runs S1 ingest + S2 recon
+> and writes `stage1_observed.{json,svg}`), and it emits a schema-valid **stub**
+> `plan.json` with `status = "not_computed"`. Outline tracing, classification and
+> snapping were moved to `archive/old_stage23/` (see `docs/stage1_contract.md` and
+> `docs/plans/04i`). The tested wall finder `scan2plan.geometry.room_fit` is kept,
+> unused by default. `scan2plan ablate` is pending the redesign; damage/scope/
+> calibration stages (S5–S8) land later. See `docs/plans/`.
 
 ## Interfaces (frozen contracts)
 
@@ -45,9 +47,9 @@ Requires Python 3.11+.
 ## CLI
 
 ```
-scan2plan run <capture_dir> [--config cfg.yaml] [--out out/]   # S1..S9 (one command)
+scan2plan run <capture_dir> [--config cfg.yaml] [--out out/]   # S1+S2 + stage-1 evidence + stub plan
 scan2plan ingest <capture_dir>                                 # S1 only
-scan2plan ablate --capture <id> --feature loop_closure         # drift on/off (G-DRIFT)
+scan2plan ablate --capture <id> --feature loop_closure         # pending stage 2/3 redesign
 scan2plan bench [--tier photos|video|lidar]                    # benchmark gates
 scan2plan report                                               # report tables
 scan2plan validate <plan.json>                                 # I3 schema check
@@ -56,8 +58,10 @@ scan2plan validate <plan.json>                                 # I3 schema check
 ## Layout
 
 ```
-src/scan2plan/          # package (cli.py, config.py, util/, cir/, ingest/, recon/, ...)
+src/scan2plan/          # package (cli.py, config.py, util/, cir/, ingest/, recon/, geometry/, render/)
+archive/old_stage23/    # pre-redesign stage 2/3 (outline/classification/snapping), kept for reference
 docs/plans/             # implementation plans (master + per-part/module)
+docs/stage1_contract.md # stage-1 observed-evidence contract (grid, thresholds, files)
 docs/schema/            # JSON schemas (I3/I4/I9)
 bench/                  # benchmark data + ground truth + runner
 scripts/                # bootstrap / fetch_weights / build_bundle
@@ -73,8 +77,13 @@ and `confidence/` are git-ignored as large binaries — see `docs/plans/02` §6)
 | Path | Rooms | Frames | Duration |
 |---|---|---|---|
 | `single_room/c00a170fe1/` | 1 | 1715 | ~29 s |
-| `single_scan_floor_only/1a8384c3f6/` | 1 | 5251 | ~88 s |
+| `single_scan_floor_only/1a8384c3f6/` | **multiple** | 5251 | ~88 s |
 | `single_scan_with_ceiling/c7d28f72c6/` | 1 | 9745 | ~162 s |
+
+Note: `single_scan_floor_only/1a8384c3f6` is a **multi-room** capture — the camera
+travels ~54 m (vs ~14 m for `single_room`), covering more than one room, so it is
+not a single-room scan. Stages beyond stage 1 (which would segment and stitch
+rooms) are being redesigned and are not computed yet.
 
 ## Development
 

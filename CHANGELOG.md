@@ -4,6 +4,18 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i cleanup — freeze stage 1, archive stage 2/3
+- Tagged `stage1-frozen` (stage-1 observed evidence).
+- Moved stage 2/3 (outline tracing, classification, snapping) to
+  `archive/old_stage23/` for redesign; the tested wall finder
+  `scan2plan.geometry.room_fit` is kept in `src/`, unused by default, excluded
+  from ruff.
+- `scan2plan run` now writes the stage-1 artifacts (`stage1_observed.{json,svg}`)
+  and a schema-valid **stub** `plan.json` with `status="not_computed"` (new
+  optional CIR field + regenerated I3). `ablate` is pending the redesign.
+- Added `docs/stage1_contract.md` (every output file/field, grid sizes, every
+  threshold with its config key); README notes `1a8384c3f6` is multi-room.
+
 ### 04i — three-stage room outline with explainable furniture removal
 - **Stage 1 redefined as pure observed evidence** (renamed from "outline"): layered
   output, no hull/buffer/snap/interpolation — observed wall cells (with per-cell
