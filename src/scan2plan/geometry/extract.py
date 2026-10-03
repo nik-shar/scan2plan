@@ -1,9 +1,12 @@
-"""Turn a world point cloud into room/surface/opening CIR entities (plan 04c).
+"""Turn a world point cloud into room/surface/opening CIR entities (plan 04c/04h).
 
-Single-room scope (M3): floor/ceiling planes -> oriented bounding box (OBB) of the
-floor footprint (this is the Manhattan alignment, plan 04c §1.2) -> four wall
-surfaces -> a first-cut door/passage detector (wall-gap analysis). Non-rectangular
-rooms are a documented limitation (plan 04c risk: "Non-Manhattan rooms").
+Single-room scope: floor/ceiling planes -> **concave polygonal footprint** of the
+floor (plan 04h; Manhattan-aligned, plan 04c section 1.2) -> one wall Surface per
+polygon edge -> a first-cut door/passage detector (wall-gap analysis). The
+oriented bounding box (OBB) is retained only as a fallback when the floor grid is
+unusable, so rooms are no longer forced to be rectangles (L-shaped rooms keep
+their real area and walls). Interior partitions and curved walls remain out of
+scope (plan 04h non-goals).
 
 Confidence intervals here are placeholder plane-RMS/relative margins; plan 04f
 replaces them with calibrated (conformal) intervals at M6.
@@ -11,6 +14,7 @@ replaces them with calibrated (conformal) intervals at M6.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -18,6 +22,7 @@ from numpy.typing import NDArray
 
 from scan2plan.cir import Measurement, Opening, Plane, Room, Surface
 from scan2plan.cir.measure import Tier
+from scan2plan.geometry.footprint import extract_footprint, rotate2d
 from scan2plan.geometry.planes import HorizontalPlane, horizontal_planes
 
 # Opening detection thresholds (tunable; validated against ground truth at M7).
@@ -25,6 +30,7 @@ DOOR_MIN_WIDTH_M = 0.55
 DOOR_MAX_WIDTH_M = 1.6
 WALL_SLAB_M = 0.08  # points within this of a wall plane count as "on the wall"
 DOOR_SCAN_HEIGHT_M = 2.2  # look for openings up to this height above the floor
+MIN_WALL_LEN_M = 0.30  # polygon edges shorter than this are not emitted as walls
 
 # Placeholder CI half-widths (replaced by calibrated CIs in 04f / M6).
 CEIL_CI_K = 3.0  # half-width = CEIL_CI_K * (floor_rms + ceiling_rms)
@@ -69,18 +75,12 @@ def _measurement(
     )
 
 
-def _rotate2d(xz: NDArray[np.float64], theta: float) -> NDArray[np.float64]:
-    c, s = float(np.cos(theta)), float(np.sin(theta))
-    rot = np.array([[c, -s], [s, c]])
-    return np.asarray(xz @ rot.T, dtype=np.float64)
-
-
 def estimate_orientation(xz: NDArray[np.float64], step_deg: float = 1.0) -> float:
     """Manhattan orientation: yaw minimising the (robust) bounding-box area."""
     best_theta, best_area = 0.0, np.inf
     for deg in np.arange(0.0, 90.0, step_deg):
         theta = float(np.deg2rad(deg))
-        rot = _rotate2d(xz, theta)
+        rot = rotate2d(xz, theta)
         xs = np.percentile(rot[:, 0], [OBB_PCT_LO, OBB_PCT_HI])
         zs = np.percentile(rot[:, 1], [OBB_PCT_LO, OBB_PCT_HI])
         area = float((xs[1] - xs[0]) * (zs[1] - zs[0]))
@@ -163,6 +163,79 @@ def _detect_openings(
     return openings
 
 
+def _extract_obb_ring(
+    rot: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], float]:
+    """Fallback footprint: robust oriented bounding box (Manhattan frame).
+
+    Returns the CCW rectangle corners (4x2) and its area (plan 04c section 1.2).
+    """
+    xs = np.percentile(rot[:, 0], [OBB_PCT_LO, OBB_PCT_HI])
+    zs = np.percentile(rot[:, 1], [OBB_PCT_LO, OBB_PCT_HI])
+    xmin, xmax = float(xs[0]), float(xs[1])
+    zmin, zmax = float(zs[0]), float(zs[1])
+    corners = np.array([[xmin, zmin], [xmax, zmin], [xmax, zmax], [xmin, zmax]], dtype=np.float64)
+    return corners, (xmax - xmin) * (zmax - zmin)
+
+
+def _walls_from_boundary(
+    ring_local: NDArray[np.float64],
+    theta: float,
+    floor_y: float,
+    room_id: str,
+    tier: Tier,
+    *,
+    method: str,
+) -> tuple[
+    list[Surface],
+    list[tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]],
+    list[Measurement],
+]:
+    """One wall Surface + wall_length Measurement per CCW footprint edge.
+
+    Outward normal of edge (a->b) is ``(dz, -dx)`` normalised (valid for a CCW
+    ring). Edges shorter than ``MIN_WALL_LEN_M`` are skipped and do not consume a
+    wall id. Returns the surfaces, the ``(a3, b3, n3)`` tuples for the opening
+    detector, and the wall-length measurements.
+    """
+    surfaces: list[Surface] = []
+    walls: list[tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]] = []
+    measures: list[Measurement] = []
+    n = ring_local.shape[0]
+    for i in range(n):
+        a_l = ring_local[i]
+        b_l = ring_local[(i + 1) % n]
+        dx, dz = float(b_l[0] - a_l[0]), float(b_l[1] - a_l[1])
+        wall_len = float(math.hypot(dx, dz))
+        if wall_len < MIN_WALL_LEN_M:
+            continue
+        n_local = np.array([dz, -dx], dtype=np.float64) / wall_len
+        a_w = rotate2d(a_l[None, :], -theta)[0]
+        b_w = rotate2d(b_l[None, :], -theta)[0]
+        n_w = rotate2d(n_local[None, :], -theta)[0]
+        n3 = np.array([float(n_w[0]), 0.0, float(n_w[1])])
+        a3 = np.array([float(a_w[0]), floor_y, float(a_w[1])])
+        b3 = np.array([float(b_w[0]), floor_y, float(b_w[1])])
+        d = float(-(n3[0] * a3[0] + n3[2] * a3[2]))
+        wall_id = f"{room_id}_wall_{len(surfaces) + 1}"
+        surfaces.append(
+            Surface(
+                id=wall_id,
+                room_id=room_id,
+                type="wall",
+                plane=Plane(normal=[n3[0], n3[1], n3[2]], d=d),
+                polygon=[[float(a_w[0]), float(a_w[1])], [float(b_w[0]), float(b_w[1])]],
+            )
+        )
+        measures.append(
+            _measurement(
+                f"{wall_id}.length", "wall_length", wall_len, "m", LENGTH_CI_M, method, tier
+            )
+        )
+        walls.append((a3, b3, n3))
+    return surfaces, walls, measures
+
+
 def extract_room(
     points: NDArray[np.float64],
     *,
@@ -182,24 +255,23 @@ def extract_room(
     ceiling: HorizontalPlane | None = planes[1] if len(planes) > 1 else None
     floor_y = floor.height_m
 
-    # Floor footprint -> oriented bounding box (Manhattan alignment, 04c section 1.2).
+    # Floor footprint: concave polygon when the floor grid is usable (plan 04h),
+    # else the robust oriented bounding box (plan 04c section 1.2, documented fallback).
     slab = points[np.abs(y - floor_y) <= 0.08]
     xz = slab[:, [0, 2]]
     if xz.shape[0] < 4:
         xz = points[:, [0, 2]]  # fallback: use all points if the floor slab is thin
     theta = estimate_orientation(xz)
-    rot = _rotate2d(xz, theta)
-    xs = np.percentile(rot[:, 0], [OBB_PCT_LO, OBB_PCT_HI])
-    zs = np.percentile(rot[:, 1], [OBB_PCT_LO, OBB_PCT_HI])
-    xmin, xmax = float(xs[0]), float(xs[1])
-    zmin, zmax = float(zs[0]), float(zs[1])
-    length_m = xmax - xmin
-    width_m = zmax - zmin
-    area_m2 = length_m * width_m
 
-    corners_rot = np.array([[xmin, zmin], [xmax, zmin], [xmax, zmax], [xmin, zmax]])
-    corners_world = _rotate2d(corners_rot, -theta)
-    boundary = [[float(a), float(b)] for a, b in corners_world]
+    footprint = extract_footprint(xz, theta)
+    if footprint is not None:
+        ring_local = footprint.ring_local
+        area_m2 = footprint.area_m2
+        method = "polygon"
+    else:
+        ring_local, area_m2 = _extract_obb_ring(rotate2d(xz, theta))
+        method = "obb"
+    boundary = [[float(a), float(b)] for a, b in rotate2d(ring_local, -theta)]
 
     ceiling_height = None
     if ceiling is not None:
@@ -225,49 +297,17 @@ def extract_room(
         floor_area=floor_area,
     )
 
-    # Walls (4 OBB sides) as Surface entities; normals rotated back to world.
-    normals_rot = [
-        np.array([0.0, -1.0]),
-        np.array([1.0, 0.0]),
-        np.array([0.0, 1.0]),
-        np.array([-1.0, 0.0]),
-    ]
-    edge_pairs = [(0, 1), (1, 2), (2, 3), (3, 0)]
-    surfaces: list[Surface] = []
-    walls: list[tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]] = []
-    wall_ids: list[str] = []
-    measures: list[Measurement] = []
-    for i, (c0, c1) in enumerate(edge_pairs):
-        a_w = corners_world[c0]
-        b_w = corners_world[c1]
-        wall_len = float(np.hypot(b_w[0] - a_w[0], b_w[1] - a_w[1]))
-        n_world = _rotate2d(normals_rot[i][None, :], -theta)[0]
-        n3 = np.array([n_world[0], 0.0, n_world[1]])
-        a3 = np.array([a_w[0], floor_y, a_w[1]])
-        b3 = np.array([b_w[0], floor_y, b_w[1]])
-        d = float(-(n3[0] * a3[0] + n3[2] * a3[2]))
-        wall_id = f"{room_id}_wall_{i + 1}"
-        wall_ids.append(wall_id)
-        surfaces.append(
-            Surface(
-                id=wall_id,
-                room_id=room_id,
-                type="wall",
-                plane=Plane(normal=[float(n3[0]), float(n3[1]), float(n3[2])], d=d),
-                polygon=[[float(a_w[0]), float(a_w[1])], [float(b_w[0]), float(b_w[1])]],
-            )
-        )
-        measures.append(
-            _measurement(
-                f"{wall_id}.length", "wall_length", wall_len, "m", LENGTH_CI_M, "obb", tier
-            )
-        )
-        walls.append((a3, b3, n3))
+    # Walls: one Surface per footprint edge (L-shaped rooms => >4 walls).
+    surfaces, walls, measures = _walls_from_boundary(
+        ring_local, theta, floor_y, room_id, tier, method=method
+    )
+    wall_ids = [s.id for s in surfaces if s.type == "wall"]
 
-    perimeter = 2.0 * (length_m + width_m)
+    edges = np.roll(ring_local, -1, axis=0) - ring_local
+    perimeter = float(np.sum(np.hypot(edges[:, 0], edges[:, 1])))
     measures.append(
         _measurement(
-            f"{room_id}.perimeter", "perimeter", perimeter, "m", 2 * LENGTH_CI_M, "obb", tier
+            f"{room_id}.perimeter", "perimeter", perimeter, "m", 2 * LENGTH_CI_M, method, tier
         )
     )
 
