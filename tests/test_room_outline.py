@@ -118,10 +118,61 @@ def test_interval_has_odometry_term() -> None:
     assert half == pytest.approx(Config().outline.odometry_ci_frac * 4.0, rel=0.2)
 
 
+def test_stage1_is_layered_evidence_not_a_polygon() -> None:
+    pts, cam, fy, cy, _ = wm.synthetic_room()
+    res = build_outline(pts, cam, tier="lidar", floor_y=fy, ceil_y=cy, cfg=Config())
+    s1 = res.stage1
+    assert s1["name"] == "observed evidence"
+    assert "polygon_xz" not in s1  # no hull / closed outline in stage 1
+    layers = s1["layers"]  # type: ignore[index]
+    assert set(layers) == {"wall_cells", "floor_cells", "camera_free_space"}
+    # wall cells carry a per-cell support count
+    wall = layers["wall_cells"]  # type: ignore[index]
+    assert wall and all("support" in c for c in wall)
+    stats = s1["statistics"]  # type: ignore[index]
+    assert "camera_inside_fraction" in stats
+
+
+def test_stage1_unfiltered_layer_when_given() -> None:
+    pts, cam, fy, cy, _ = wm.synthetic_room()
+    res = build_outline(
+        pts, cam, tier="lidar", floor_y=fy, ceil_y=cy, cfg=Config(), points_unfiltered=pts
+    )
+    uf = res.stage1["unfiltered"]  # type: ignore[index]
+    assert uf is not None
+    assert "wall_cells" in uf and "counts" in uf
+
+
+def test_stage3_has_provenance_and_inferred_corners() -> None:
+    pts, cam, fy, cy, _ = wm.synthetic_room()
+    res = build_outline(pts, cam, tier="lidar", floor_y=fy, ceil_y=cy, cfg=Config())
+    s3 = res.stage3
+    assert s3["corners"]
+    for c in s3["corners"]:  # type: ignore[index]
+        assert c["provenance"] in ("observed", "inferred")
+        assert "ci_half_m" in c
+    for w in s3["walls"]:  # type: ignore[index]
+        assert w["provenance"] in ("observed", "inferred")
+        assert "extrapolation_m" in w
+    # camera-inside check now lives at stage 3
+    assert "camera_inside_fraction" in s3
+
+
+def test_camera_inside_fraction_unit() -> None:
+    from scan2plan.geometry.room_outline import _camera_inside_fraction
+
+    poly = [[0.0, 0.0], [4.0, 0.0], [4.0, 3.0], [0.0, 3.0]]
+    cam = np.array([[1.0, 0.0, 1.0], [10.0, 0.0, 1.0]])  # second is outside
+    assert _camera_inside_fraction(poly, cam) == pytest.approx(0.5)
+
+
 def test_build_outline_deterministic() -> None:
     pts, cam, fy, cy, _ = wm.synthetic_room()
     a = build_outline(pts, cam, tier="lidar", floor_y=fy, ceil_y=cy, cfg=Config())
     b = build_outline(pts, cam, tier="lidar", floor_y=fy, ceil_y=cy, cfg=Config())
+    assert json.dumps(a.stage1, sort_keys=True, default=str) == json.dumps(
+        b.stage1, sort_keys=True, default=str
+    )
     assert json.dumps(a.stage3, sort_keys=True, default=str) == json.dumps(
         b.stage3, sort_keys=True, default=str
     )
