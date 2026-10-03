@@ -82,17 +82,16 @@ def test_ablate_unknown_capture_errors(tmp_path: Path) -> None:
     assert result.exit_code != NOT_IMPLEMENTED_EXIT
 
 
-def test_ablate_runs_on_synthetic_bundle(make_lidar_bundle, tmp_path: Path) -> None:
+def test_ablate_emits_stage1_and_stub_plan(make_lidar_bundle, tmp_path: Path) -> None:
     cap = make_lidar_bundle(tmp_path, n_frames=2)
     out_dir = tmp_path / "out"
     result = runner.invoke(app, ["ablate", "--capture", str(cap), "--out", str(out_dir)])
     assert result.exit_code == 0
-    ablation = out_dir / cap.name / "ablation.json"
-    assert ablation.is_file()
-    data = json.loads(ablation.read_text())
-    # G-DRIFT: both footprints emitted from the same code path
-    assert "loop_closure_on" in data and "off" in data
-    assert data["loop_closure_on"]["footprint_m2"] >= 0.0
+    # stages beyond 1 are being redesigned -> a stub plan (not_computed) + evidence
+    plan = out_dir / cap.name / "plan.json"
+    assert plan.is_file()
+    assert json.loads(plan.read_text())["status"] == "not_computed"
+    assert (out_dir / cap.name / "stage1_observed.json").is_file()
 
 
 def test_ablate_rejects_unknown_feature(make_lidar_bundle, tmp_path: Path) -> None:
@@ -115,6 +114,18 @@ def test_bench_reports_pending() -> None:
 def test_report_reports_pending() -> None:
     result = runner.invoke(app, ["report"])
     assert result.exit_code == NOT_IMPLEMENTED_EXIT
+
+
+def test_run_writes_stub_plan(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2)
+    out_dir = tmp_path / "out"
+    result = runner.invoke(app, ["run", str(cap), "--out", str(out_dir)])
+    assert result.exit_code == 0
+    plan = out_dir / cap.name / "plan.json"
+    data = json.loads(plan.read_text())
+    assert data["status"] == "not_computed"  # stages beyond 1 are being redesigned
+    assert validate_plan(data) == []
+    assert (out_dir / cap.name / "stage1_observed.json").is_file()
 
 
 def test_validate_accepts_valid_plan(tmp_path: Path, valid_plan_dict: dict) -> None:
