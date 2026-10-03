@@ -260,6 +260,9 @@ class CIR(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     schema_version: str = SCHEMA_VERSION
+    #: Plan readiness. "not_computed" for stub plans emitted before stages 2+ land
+    #: (plan 04i cleanup); append-only optional field (rule R4).
+    status: str = "computed"
     session: Session
     frames: list[Frame] = Field(default_factory=list)
     recon: Recon | None = None

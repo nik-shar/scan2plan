@@ -1150,6 +1150,11 @@
       "title": "Schema Version",
       "type": "string"
     },
+    "status": {
+      "default": "computed",
+      "title": "Status",
+      "type": "string"
+    },
     "session": {
       "$ref": "#/$defs/Session"
     },
