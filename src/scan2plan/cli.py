@@ -28,7 +28,7 @@ from scan2plan.geometry import OutlineResult, RoomGeometry, build_outline
 from scan2plan.geometry.planes import horizontal_planes
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
-from scan2plan.render import render_outline_svg, render_room_svg, render_stage_svg
+from scan2plan.render import render_evidence_svg, render_room_svg, render_stage_svg
 from scan2plan.stitch import run_ablation, run_stitch
 from scan2plan.util.logging import get_logger
 
@@ -112,6 +112,10 @@ def _pipeline_s1_s3(
 
     assert cir.recon.points_ref is not None
     points = np.load(out_dir / cir.recon.points_ref)["points"].astype(np.float64)
+    unfiltered_path = out_dir / "recon" / "points_unfiltered.npz"
+    points_unfiltered = (
+        np.load(unfiltered_path)["points"].astype(np.float64) if unfiltered_path.is_file() else None
+    )
     cam = _camera_path(cir)
     try:
         planes = horizontal_planes(points[:, 1])
@@ -127,6 +131,7 @@ def _pipeline_s1_s3(
             ceil_y=ceil_y,
             cfg=cfg,
             room_id="room_0",
+            points_unfiltered=points_unfiltered,
         )
     except ValueError as exc:
         typer.secho(
@@ -223,12 +228,10 @@ def run(
         stage_paths = _write_stage_json(outline, out_dir)
         # One SVG per stage (plan 04i), plus the canonical plan.svg. All inspectable.
         svg_paths = [
-            render_outline_svg(
-                outline.stage1.get("polygon_xz", []),  # type: ignore[arg-type]
+            render_evidence_svg(
+                outline.stage1,
                 out_dir / "stage1_observed.svg",
-                title=f"{cir.session.id} - stage 1: observed outline (before cleanup)",
-                camera_xz=outline.stage1.get("camera_xz", []),  # type: ignore[arg-type]
-                note=f"camera travel: {outline.stage1.get('camera_travel_m')} m",
+                title=f"{cir.session.id} - stage 1: observed evidence",
             ),
             render_stage_svg(
                 geom,
@@ -273,10 +276,13 @@ def run(
         )
         counts = outline.stage2.get("counts", {})
         removed = {k: v for k, v in counts.items() if k != "wall" and v}  # type: ignore[union-attr]
+        lc = outline.stage1.get("layer_counts", {})
         typer.echo(
-            f"  stages: observed={outline.stage1.get('area_m2')} m2 -> "
+            f"  stages: evidence walls={lc.get('wall_cells')} "  # type: ignore[union-attr]
+            f"floor={lc.get('floor_cells')} free={lc.get('camera_free_space')} -> "  # type: ignore[union-attr]
             f"final={outline.stage3.get('area_m2')} m2 "
-            f"edges={outline.stage3.get('n_edges')} method={outline.stage3.get('method')}"
+            f"edges={outline.stage3.get('n_edges')} method={outline.stage3.get('method')} "
+            f"inferred_walls={outline.stage3.get('inferred_walls')}"
         )
         typer.echo(f"  removed: {removed or 'none'}")
         if outline.warnings:
