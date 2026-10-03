@@ -38,6 +38,14 @@ from numpy.typing import NDArray
 from scan2plan.cir import Measurement
 from scan2plan.cir.measure import Tier
 from scan2plan.config import Config
+from scan2plan.geometry.wall_complete import (
+    EXTENSION,
+    CompletionParams,
+    CompletionResult,
+    WallPiece,
+    complete_walls,
+    completion_params_from_config,
+)
 
 #: Structural constants (not decision thresholds - those live in I4 ``outline``).
 RUN_STEP_M = 0.05  # along-wall run-histogram bin (m)
@@ -215,6 +223,8 @@ class Segment:
     merged_from: int = 1
     extension: float = 0.0
     provenance: str = "observed"
+    rule: str = ""
+    ci_m: float = 0.0
 
     @property
     def length(self) -> float:
@@ -315,7 +325,7 @@ def merge_segments(segs: list[Segment], p: WallParams) -> list[Segment]:
 
 
 def join_segments(
-    segs: list[Segment], p: WallParams
+    segs: list[Segment], p: WallParams, cparams: CompletionParams
 ) -> tuple[list[Segment], list[dict[str, object]]]:
     """Snap endpoints to perpendicular wall lines (L/T junctions).
 
@@ -370,7 +380,9 @@ def join_segments(
             ext += seg.end - orig_end
         seg.extension = round(ext, 4)
         if ext > 1e-9:
-            seg.provenance = "inferred"
+            seg.provenance = EXTENSION
+            seg.rule = "junction_extend"
+            seg.ci_m = cparams.ci_base_m + cparams.ci_per_m * ext
     return segs, junctions
 
 
@@ -406,13 +418,113 @@ def _extent_world(cells: NDArray[np.float64]) -> dict[str, list[float]] | None:
     }
 
 
+def _segment_to_piece(s: Segment) -> WallPiece:
+    """Adapt a stage-2 ``Segment`` to the completion module's ``WallPiece``."""
+    return WallPiece(
+        axis=s.axis,
+        offset=s.offset,
+        start=s.start,
+        end=s.end,
+        provenance=s.provenance,
+        rule=s.rule,
+        ci_m=s.ci_m,
+        extension=s.extension,
+        support=s.support,
+        coverage=s.coverage,
+        thickness=s.thickness,
+        merged_from=s.merged_from,
+        peak_strength=s.peak_strength,
+    )
+
+
+def _piece_to_segment(pc: WallPiece) -> Segment:
+    """Adapt a completed ``WallPiece`` back to a stage-2 ``Segment`` for output."""
+    return Segment(
+        axis=pc.axis,
+        offset=pc.offset,
+        start=pc.start,
+        end=pc.end,
+        support=pc.support,
+        coverage=pc.coverage,
+        peak_strength=pc.peak_strength,
+        thickness=pc.thickness,
+        merged_from=pc.merged_from,
+        provenance=pc.provenance,
+        rule=pc.rule,
+        ci_m=pc.ci_m,
+        extension=pc.extension,
+    )
+
+
+def _endpoints_uv(pc: WallPiece) -> tuple[tuple[float, float], tuple[float, float]]:
+    """The two endpoints of a uv piece (axis-aware)."""
+    if pc.axis == 0:
+        return (pc.offset, pc.start), (pc.offset, pc.end)
+    return (pc.start, pc.offset), (pc.end, pc.offset)
+
+
+def _world_endpoints(
+    pc: WallPiece, theta: float
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    a_uv, b_uv = _endpoints_uv(pc)
+    return _uv_to_world(a_uv[0], a_uv[1], theta), _uv_to_world(b_uv[0], b_uv[1], theta)
+
+
+def _opening_out(idx: int, pc: WallPiece, theta: float, cfg: Config, tier: Tier) -> dict:
+    """Serialise a camera-crossed gap as a stage-2 opening (door)."""
+    a_w, b_w = _world_endpoints(pc, theta)
+    half = max(cfg.outline.ci_base_m, cfg.outline.odometry_ci_frac * pc.length, 1e-4)
+    width = Measurement(
+        id=f"open_{idx + 1}.width",
+        kind="opening_width",
+        value=round(pc.length, 4),
+        unit="m",
+        ci_low=round(pc.length - half, 4),
+        ci_high=round(pc.length + half, 4),
+        method="camera_path_cross",
+        tier=tier,
+    )
+    return {
+        "id": f"open_{idx + 1}",
+        "axis": AXES[pc.axis],
+        "offset_m": round(pc.offset, 4),
+        "start_m": round(pc.start, 4),
+        "end_m": round(pc.end, 4),
+        "width": width.model_dump(),
+        "kind": "door",
+        "rule": pc.rule,
+        "endpoints_world": {
+            "a": [round(a_w[0], 4), round(a_w[1], 4)],
+            "b": [round(b_w[0], 4), round(b_w[1], 4)],
+        },
+    }
+
+
+def _unknown_out(idx: int, pc: WallPiece, theta: float) -> dict:
+    """Serialise an unresolved (evidence-free) gap that is left open."""
+    a_w, b_w = _world_endpoints(pc, theta)
+    return {
+        "id": f"unknown_{idx + 1}",
+        "axis": AXES[pc.axis],
+        "offset_m": round(pc.offset, 4),
+        "start_m": round(pc.start, 4),
+        "end_m": round(pc.end, 4),
+        "length_m": round(pc.length, 4),
+        "rule": pc.rule,
+        "endpoints_world": {
+            "a": [round(a_w[0], 4), round(a_w[1], 4)],
+            "b": [round(b_w[0], 4), round(b_w[1], 4)],
+        },
+    }
+
+
 def _segment_out(idx: int, s: Segment, theta: float, cfg: Config, tier: Tier) -> dict[str, object]:
     """Serialise one segment in world coordinates, with a length Measurement."""
     a_uv = (s.offset, s.start) if s.axis == 0 else (s.start, s.offset)
     b_uv = (s.offset, s.end) if s.axis == 0 else (s.end, s.offset)
     a_w = _uv_to_world(a_uv[0], a_uv[1], theta)
     b_w = _uv_to_world(b_uv[0], b_uv[1], theta)
-    half = max(cfg.outline.odometry_ci_frac * s.length + s.extension, 1e-4)
+    half = max(s.ci_m, cfg.outline.odometry_ci_frac * s.length, 1e-4)
     length = Measurement(
         id=f"wall_{idx + 1}.length",
         kind="wall_length",
@@ -432,7 +544,10 @@ def _segment_out(idx: int, s: Segment, theta: float, cfg: Config, tier: Tier) ->
         "end_m": round(s.end, 4),
         "length": length.model_dump(),
         "provenance": s.provenance,
+        "inferred": s.provenance != "observed",
+        "rule": s.rule,
         "extension_m": round(s.extension, 4),
+        "ci_m": round(s.ci_m, 4),
         "support": int(s.support),
         "coverage": round(s.coverage, 4),
         "peak_strength": round(s.peak_strength, 4),
@@ -479,10 +594,25 @@ def reconstruct_walls(
         if wall_cells
         else np.empty((0, 2), dtype=np.float64)
     )
+    raw_cam = stage1.get("camera_xz") or []
+    cam_xz = (
+        np.array([[float(a), float(b)] for a, b in raw_cam], dtype=np.float64)
+        if raw_cam
+        else np.empty((0, 2), dtype=np.float64)
+    )
 
     theta = 0.0
     segments_out: list[dict[str, object]] = []
     junctions: list[dict[str, object]] = []
+    openings_out: list[dict[str, object]] = []
+    unknown_out: list[dict[str, object]] = []
+    completion_counts: dict[str, int] = {
+        "bridged_occluded": 0,
+        "bridged_dropout": 0,
+        "extended": 0,
+        "openings": 0,
+        "unknown_gaps": 0,
+    }
     total = int(all_xz.shape[0])
     n_kept = int(kept.shape[0])
     evidence: dict[str, object] = {
@@ -498,10 +628,26 @@ def reconstruct_walls(
         warnings.append(f"too few wall cells ({n_kept} < {MIN_WALL_CELLS}) - wall fit skipped")
     else:
         theta = manhattan_angle(kept)
-        segs = merge_segments(extract_segments(rotate_xz(kept, theta), p), p)
-        segs, junctions = join_segments(segs, p)
-        expl = int(explained_mask(rotate_xz(all_xz, theta), segs, p.evidence_tol_m).sum())
-        kept_expl = int(explained_mask(rotate_xz(kept, theta), segs, p.evidence_tol_m).sum())
+        uv_kept = rotate_xz(kept, theta)
+        cparams = completion_params_from_config(cfg)
+        segs = merge_segments(extract_segments(uv_kept, p), p)
+        segs, junctions = join_segments(segs, p, cparams)
+
+        # Stage-2 completion (wall_complete): bridge broken collinear lines without
+        # erasing openings, and extend dangling ends. Furniture candidates are the
+        # support-gated cells the fitted segments do NOT explain.
+        uv_all = rotate_xz(all_xz, theta)
+        observed_mask = explained_mask(uv_all, segs, p.evidence_tol_m)
+        occ_uv = uv_all[~observed_mask]
+        cam_uv = rotate_xz(cam_xz, theta) if cam_xz.shape[0] else cam_xz
+        comp: CompletionResult = complete_walls(
+            [_segment_to_piece(s) for s in segs], occ_uv, cam_uv, cparams
+        )
+
+        # evidence_explained uses the OBSERVED fitted segments only (inferred bridges
+        # / extensions cover gaps and do not "explain" observed cells).
+        expl = int(observed_mask.sum())
+        kept_expl = int(explained_mask(uv_kept, segs, p.evidence_tol_m).sum())
         evidence = {
             "cells_total": total,
             "cells_explained": expl,
@@ -511,13 +657,27 @@ def reconstruct_walls(
             "cells_kept_explained": kept_expl,
             "evidence_explained_kept": round(kept_expl / n_kept, 4) if n_kept else 0.0,
         }
-        segments_out = [_segment_out(i, s, theta, cfg, tier) for i, s in enumerate(segs)]
+        completed = [_piece_to_segment(pc) for pc in comp.walls]
+        segments_out = [_segment_out(i, s, theta, cfg, tier) for i, s in enumerate(completed)]
+        openings_out = [_opening_out(i, pc, theta, cfg, tier) for i, pc in enumerate(comp.openings)]
+        unknown_out = [_unknown_out(i, pc, theta) for i, pc in enumerate(comp.unknown_gaps)]
+        completion_counts = {
+            "bridged_occluded": sum(1 for w in comp.walls if w.provenance == "inferred_occluded"),
+            "bridged_dropout": sum(1 for w in comp.walls if w.provenance == "inferred_dropout"),
+            "extended": sum(1 for w in comp.walls if w.provenance == EXTENSION),
+            "openings": len(comp.openings),
+            "unknown_gaps": len(comp.unknown_gaps),
+        }
         if not segs:
             warnings.append("no wall segments found")
         elif n_kept and float(evidence["evidence_explained_kept"]) < LOW_EXPLAINED_FRAC:
             warnings.append(
                 f"low evidence_explained_kept {float(evidence['evidence_explained_kept']):.0%} "
                 f"({n_kept - kept_expl} of {n_kept} kept cells unexplained)"
+            )
+        if completion_counts["unknown_gaps"]:
+            warnings.append(
+                f"{completion_counts['unknown_gaps']} evidence-free gap(s) left open (flagged)"
             )
 
     return {
@@ -532,13 +692,22 @@ def reconstruct_walls(
             "merge_tol_m": p.merge_tol_m,
             "join_tol_m": p.join_tol_m,
             "evidence_tol_m": p.evidence_tol_m,
+            "collinear_tol_m": cfg.outline.collinear_tol_m,
+            "dropout_max_m": cfg.outline.dropout_max_m,
+            "max_extend_m": cfg.outline.max_extend_m,
+            "ci_base_m": cfg.outline.ci_base_m,
+            "ci_per_m": cfg.outline.ci_per_m,
         },
         "manhattan_angle_deg": round(math.degrees(theta), 3),
         "cells": cells,
         "segments": segments_out,
         "wall_count": len(segments_out),
-        "inferred_count": sum(1 for s in segments_out if s["provenance"] == "inferred"),
+        "observed_count": sum(1 for s in segments_out if not s["inferred"]),
+        "inferred_count": sum(1 for s in segments_out if s["inferred"]),
         "junctions": junctions,
+        "completion": completion_counts,
+        "openings": openings_out,
+        "unknown_gaps": unknown_out,
         "evidence": evidence,
         "extent_world": _extent_world(kept),
         "camera_start": stage1.get("camera_start"),

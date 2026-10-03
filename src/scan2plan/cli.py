@@ -192,7 +192,9 @@ def _report_stage2(stage2: dict[str, object] | None, out_dir: Path) -> None:
     ev = stage2.get("evidence", {})
     typer.echo(
         f"  stage 2 walls: {stage2.get('wall_count')} segments "  # type: ignore[union-attr]
-        f"({stage2.get('inferred_count')} inferred), "  # type: ignore[union-attr]
+        f"({stage2.get('inferred_count')} inferred, "  # type: ignore[union-attr]
+        f"{len(stage2.get('openings') or [])} openings, "  # type: ignore[arg-type]
+        f"{len(stage2.get('unknown_gaps') or [])} unknown gaps), "  # type: ignore[arg-type]
         f"evidence_explained {ev.get('evidence_explained')} "  # type: ignore[union-attr]
         f"(kept {ev.get('evidence_explained_kept')}, "  # type: ignore[union-attr]
         f"cells kept {cells.get('kept')}/{cells.get('input')})"  # type: ignore[union-attr]

@@ -221,7 +221,7 @@ def render_walls_svg(
         ep = s.get("endpoints_world")
         if not ep:
             continue
-        line_colour = (230, 120, 20) if s.get("provenance") == "inferred" else (30, 80, 220)
+        line_colour = (230, 120, 20) if s.get("inferred") else (30, 80, 220)
         draw.line(
             [
                 pix(float(ep["a"][0]), float(ep["a"][1])),
@@ -230,6 +230,28 @@ def render_walls_svg(
             fill=line_colour,
             width=3,
         )
+    for o in stage2.get("openings", []) or []:
+        ep = o.get("endpoints_world")
+        if ep:
+            draw.line(
+                [
+                    pix(float(ep["a"][0]), float(ep["a"][1])),
+                    pix(float(ep["b"][0]), float(ep["b"][1])),
+                ],
+                fill=(30, 170, 90),  # openings the camera walked through (doors)
+                width=4,
+            )
+    for u in stage2.get("unknown_gaps", []) or []:
+        ep = u.get("endpoints_world")
+        if ep:
+            draw.line(
+                [
+                    pix(float(ep["a"][0]), float(ep["a"][1])),
+                    pix(float(ep["b"][0]), float(ep["b"][1])),
+                ],
+                fill=(150, 60, 200),  # unresolved evidence-free gaps (flagged)
+                width=3,
+            )
     if isinstance(stage1, dict):
         path = stage1.get("camera_xz", []) or []
         path_px = [pix(float(p[0]), float(p[1])) for p in path]
@@ -244,11 +266,17 @@ def render_walls_svg(
                 draw.ellipse([cx - 5, cy - 5, cx + 5, cy + 5], fill=marker)
 
     ev = stage2.get("evidence", {})
+    comp = stage2.get("completion", {})
     legend = [
-        f"wall segments: {stage2.get('wall_count')} ({stage2.get('inferred_count')} inferred)",
+        f"wall segments: {stage2.get('wall_count')} "
+        f"(observed {stage2.get('observed_count')}, inferred {stage2.get('inferred_count')})",
         f"evidence_explained: {ev.get('evidence_explained')} "
         f"(kept {ev.get('evidence_explained_kept')})",
         f"unexplained wall cells: {ev.get('cells_unexplained')} (red)",
+        f"openings: {len(stage2.get('openings') or [])} (green) | "
+        f"unknown gaps: {len(stage2.get('unknown_gaps') or [])} (purple)",
+        f"completion: occluded {comp.get('bridged_occluded')}, "
+        f"dropout {comp.get('bridged_dropout')}, extended {comp.get('extended')}",
         f"angle {stage2.get('manhattan_angle_deg')} deg | min run {params.get('min_run_m')} m "
         f"| tol {tol} m",
         "camera start (green) / end (red)",
