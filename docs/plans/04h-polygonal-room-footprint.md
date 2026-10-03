@@ -254,8 +254,13 @@ Measured, `single_room/c00a170fe1`:
 | Run | floor area | walls | openings |
 |---|---|---|---|
 | OBB baseline (pre-04h) | **38.41 m²** | 4 | 0 |
-| concave footprint, `--stride 60` | 14.01 m² | 24 | 2 |
-| concave footprint, `--stride 10` | **19.21 m²** | 25 | 2 |
+| concave footprint, `--stride 10` (shipped) | **18.61 m²** | 16 | 3 |
+| concave footprint, `single_scan_floor_only` (stride 40) | 48.88 m² | 16 | 5 |
+
+Wall counts are bounded by the complexity cap (`MAX_RING_POINTS = 16`,
+`cap_complexity`): ragged real-floor boundaries are simplified further until the
+ring fits, so a scan never emits dozens of micro-walls, while a clean synthetic
+room (already <= the cap) is untouched.
 
 Synthetic validation (`tests/test_geometry.py`): a clean 4×3 − notch **L of 9.0 m²**
 is recovered at **6 walls**, a punched door is detected, a closed L yields **no
