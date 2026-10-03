@@ -74,3 +74,18 @@ def test_floor_plane_detected_for_evidence() -> None:
     pts = _room_points()
     planes = horizontal_planes(pts[:, 1])
     assert planes and abs(planes[0].height_m) < 0.05
+
+
+def test_observed_evidence_marks_camera_start_and_end() -> None:
+    pts = _room_points()
+    cam = _cam()
+    s1 = observed_evidence(pts, cam, floor_y=0.0, ceil_y=2.5, cfg=Config())
+    assert s1["camera_start"] == [round(float(cam[0, 0]), 3), round(float(cam[0, 2]), 3)]
+    assert s1["camera_end"] == [round(float(cam[-1, 0]), 3), round(float(cam[-1, 2]), 3)]
+
+
+def test_observed_evidence_no_camera_has_null_endpoints() -> None:
+    pts = _room_points()
+    s1 = observed_evidence(pts, np.empty((0, 3)), 0.0, 2.5, Config())
+    assert s1["camera_start"] is None
+    assert s1["camera_end"] is None

@@ -1,9 +1,9 @@
-"""Stage-2 wall reconstruction tests (plan 04i).
+"""Stage-2 multi-segment wall extraction tests (plan 04i).
 
-Stage 2 must be a pure, deterministic function of the *frozen stage-1 artifact*:
-same stage-1 JSON + config -> byte-identical wall JSON. It cleans the noisy wall
-cells with the support gate and reconstructs Manhattan wall lines/segments; it
-never produces a polygon, and it never fails.
+Stage 2 is a pure, deterministic function of the *frozen stage-1 artifact*: the
+same stage-1 JSON + config gives byte-identical wall JSON. It extracts **all** wall
+segments (never a closing rectangle) and reports how much of the wall evidence they
+explain.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-import pytest
 from typer.testing import CliRunner
 
 from scan2plan.cli import app
@@ -20,41 +19,44 @@ from scan2plan.config import Config
 from scan2plan.geometry import reconstruct_walls
 
 
-def _stage1_payload(
-    w: float = 4.0,
-    d: float = 3.0,
-    n: int = 60,
+def _line(
+    cells: list[dict],
     *,
-    wall_support: int = 6,
-    ghost_support: int = 1,
-    inset: bool = False,
-) -> dict:
-    """A synthetic stage-1 observed-evidence payload (4 walls + ghosts)."""
-    wall: list[dict] = []
-    for x in np.linspace(0.0, w, n):
-        wall.append({"x": float(x), "z": 0.0, "support": wall_support})
-        wall.append({"x": float(x), "z": float(d), "support": wall_support})
-    for z in np.linspace(0.0, d, n):
-        wall.append({"x": 0.0, "z": float(z), "support": wall_support})
-        wall.append({"x": float(w), "z": float(z), "support": wall_support})
-    if inset:
-        # a 0.7 m run inset from the u_min wall -> must be rejected by min_run_m
-        for z in np.linspace(2.0, 2.7, 15):
-            wall.append({"x": 0.5, "z": float(z), "support": wall_support})
-    for x in np.linspace(1.0, 2.0, 20):  # single-height-bin ghosts in the middle
-        wall.append({"x": float(x), "z": 1.5, "support": ghost_support})
-    floor = [[float(x), float(z)] for x in np.linspace(0.0, w, 20) for z in np.linspace(0.0, d, 20)]
+    x: float | None = None,
+    z: float | None = None,
+    lo: float,
+    hi: float,
+    n: int = 60,
+    support: int = 6,
+) -> None:
+    """Add cells along a vertical (``x=const``) or horizontal (``z=const``) line."""
+    for t in np.linspace(float(lo), float(hi), n):
+        if x is not None:
+            cells.append({"x": float(x), "z": float(t), "support": support})
+        else:
+            cells.append({"x": float(t), "z": float(z), "support": support})
+
+
+def _finish(cells: list[dict], w: float, d: float, floor: list[list[float]] | None) -> dict:
+    floor = (
+        floor
+        if floor is not None
+        else [
+            [float(x), float(z)] for x in np.linspace(0.0, w, 20) for z in np.linspace(0.0, d, 20)
+        ]
+    )
     cam = [
-        [float(w / 2 + 0.5 * np.cos(t)), float(d / 2 + 0.5 * np.sin(t))]
+        [float(w / 2 + 0.8 * np.cos(t)), float(d / 2 + 0.8 * np.sin(t))]
         for t in np.linspace(0.0, 2 * np.pi, 40)
     ]
     return {
         "name": "observed evidence",
-        "params": {"cell_m": 0.02, "evidence_bin_m": 0.1, "min_height_bins": 4},
         "camera_xz": cam,
-        "layers": {"wall_cells": wall, "floor_cells": floor, "camera_free_space": []},
+        "camera_start": cam[0],
+        "camera_end": cam[-1],
+        "layers": {"wall_cells": cells, "floor_cells": floor, "camera_free_space": []},
         "layer_counts": {
-            "wall_cells": len(wall),
+            "wall_cells": len(cells),
             "floor_cells": len(floor),
             "camera_free_space": 0,
         },
@@ -63,101 +65,131 @@ def _stage1_payload(
     }
 
 
-def _three_wall_payload() -> dict:
-    """A payload with only 3 walls (the z=d side is missing) -> one unobserved."""
-    w, d = 4.0, 3.0
-    wall: list[dict] = []
-    for z in np.linspace(0.0, 2.0, 100):  # side walls stop short of the missing wall
-        wall.append({"x": 0.0, "z": float(z), "support": 6})
-        wall.append({"x": float(w), "z": float(z), "support": 6})
-    for x in np.linspace(0.0, w, 100):
-        wall.append({"x": float(x), "z": 0.0, "support": 6})
-    cam = [
-        [float(w / 2 + 0.5 * np.cos(t)), float(d / 3 + 0.5 * np.sin(t))]
-        for t in np.linspace(0.0, 2 * np.pi, 40)
-    ]
-    return {
-        "name": "observed evidence",
-        "camera_xz": cam,
-        "layers": {"wall_cells": wall, "floor_cells": [], "camera_free_space": []},
-        "layer_counts": {"wall_cells": len(wall), "floor_cells": 0, "camera_free_space": 0},
-        "statistics": {},
-        "warnings": [],
-    }
+def _payload(
+    w: float = 4.0,
+    d: float = 4.0,
+    *,
+    inner: bool = False,
+    merge_face: bool = False,
+    door: bool = False,
+    ghosts: int = 0,
+) -> dict:
+    """An axis-aligned room (Manhattan angle 0) with optional inner wall/faces."""
+    cells: list[dict] = []
+    if door:
+        _line(cells, x=0.0, lo=0.0, hi=1.6)
+        _line(cells, x=0.0, lo=2.0, hi=d)
+    else:
+        _line(cells, x=0.0, lo=0.0, hi=d)
+    _line(cells, x=w, lo=0.0, hi=d)
+    _line(cells, z=0.0, lo=0.0, hi=w)
+    _line(cells, z=d, lo=0.0, hi=w)
+    if inner:
+        _line(cells, z=2.5, lo=0.0, hi=2.0)  # partition, x in [0, 2]
+    if merge_face:
+        _line(cells, x=0.18, lo=0.2, hi=1.4)  # second face of the x=0 wall
+    for i in range(ghosts):
+        cells.append({"x": 1.0 + 0.05 * i, "z": 1.5, "support": 1})  # 1-height-bin noise
+    return _finish(cells, w, d, None)
 
 
-def test_four_walls_recovered() -> None:
-    s2 = reconstruct_walls(_stage1_payload(), Config())
-    assert s2["name"] == "wall reconstruction"
-    assert all(w["state"] == "observed" for w in s2["walls"])
-    lengths = sorted(w["length_m"] for w in s2["walls"])
-    assert lengths == pytest.approx([3.0, 3.0, 4.0, 4.0], abs=0.1)
-    # axis-aligned synthetic room -> Manhattan angle ~ 0 (mod 90)
-    angle = s2["manhattan_angle_deg"]
-    assert min(angle, 90 - angle) == pytest.approx(0.0, abs=1.0)
+def _junction_payload() -> dict:
+    """A u-line and a perpendicular v-line that are 0.25 m short of meeting."""
+    cells: list[dict] = []
+    _line(cells, x=0.0, lo=0.0, hi=3.75, n=150)  # u-line at x=0, ends 0.25 short of z=4
+    _line(cells, z=4.0, lo=0.1, hi=4.0, n=150)  # v-line at z=4 (x starts at 0.1)
+    return _finish(cells, 4.0, 4.0, [])
 
 
-def test_support_gate_drops_single_bin_cells() -> None:
-    s2 = reconstruct_walls(_stage1_payload(), Config())
-    cells = s2["cells"]
-    assert cells["input"] == cells["kept"] + cells["dropped"]
-    assert cells["dropped"] == 20  # exactly the ghosts
-    assert cells["dropped_reasons"]["support_below_min_height_bins"] == cells["dropped"]
+def test_outer_and_inner_walls_recovered() -> None:
+    s2 = reconstruct_walls(_payload(inner=True), Config())
+    segs = s2["segments"]
+    assert s2["name"] == "wall segments"
+    assert s2["wall_count"] == len(segs) >= 5
+    # inner partition: a line at offset ~2.5 with length ~2.0 (either axis)
+    inner = [s for s in segs if abs(s["offset_m"] - 2.5) < 0.1]
+    assert inner and abs(inner[0]["length"]["value"] - 2.0) < 0.15
+    # the four outer walls are long (~4 m)
+    assert sum(1 for s in segs if s["length"]["value"] > 3.5) >= 4
 
 
-def test_inset_short_run_is_rejected() -> None:
-    # the 0.7 m inset blob sits nearer the camera than the real wall; the run-length
-    # test must reject it and keep the real u_min wall at u=0.
-    s2 = reconstruct_walls(_stage1_payload(inset=True), Config())
-    umin = next(w for w in s2["walls"] if w["side"] == "u_min")
-    assert umin["state"] == "observed"
-    assert umin["line_uv"]["pos"] == pytest.approx(0.0, abs=0.05)
-
-
-def test_missing_wall_is_unobserved() -> None:
-    s2 = reconstruct_walls(_three_wall_payload(), Config())
-    states = {w["side"]: w["state"] for w in s2["walls"]}
-    assert states["v_max"] == "unobserved"
-    assert states["u_min"] == "observed"
-    assert states["u_max"] == "observed"
-    assert states["v_min"] == "observed"
-    assert any("unobserved" in w for w in s2["warnings"])
-
-
-def test_no_polygon_or_openings_in_stage2() -> None:
-    s2 = reconstruct_walls(_stage1_payload(), Config())
+def test_no_closing_rectangle() -> None:
+    s2 = reconstruct_walls(_payload(), Config())
+    assert "walls" not in s2  # not the old 4-wall rectangle record
+    assert "segments" in s2
     flat = json.dumps(s2)
-    assert "polygon" not in flat  # walls are lines, not a closed outline
-    assert "openings" not in flat
+    assert "polygon" not in flat
+    assert "camera_inside_walls_fraction" not in flat
     assert "corners" not in flat
 
 
+def test_support_gate_drops_low_support_cells() -> None:
+    s2 = reconstruct_walls(_payload(ghosts=20), Config())
+    cells = s2["cells"]
+    assert cells["dropped"] == 20
+    assert cells["dropped_reasons"]["support_below_min_height_bins"] == 20
+    assert cells["kept"] == cells["input"] - 20
+
+
+def test_parallel_faces_merge_with_thickness() -> None:
+    s2 = reconstruct_walls(_payload(merge_face=True), Config())
+    merged = [s for s in s2["segments"] if s["merged_from"] >= 2 and s["thickness_m"] > 0.0]
+    assert merged
+
+
+def test_door_gap_splits_one_wall_into_two() -> None:
+    s2 = reconstruct_walls(_payload(door=True), Config())
+    at_zero = [s for s in s2["segments"] if abs(s["offset_m"]) < 0.05]
+    assert len(at_zero) >= 2  # the 0.4 m doorway splits the x=0 wall into two runs
+
+
+def test_junction_extension_is_inferred_and_widens_interval() -> None:
+    s2 = reconstruct_walls(_junction_payload(), Config())
+    segs = s2["segments"]
+    assert len(segs) == 2  # one u-line + one perpendicular v-line
+    extends = [j for j in s2["junctions"] if j["kind"] == "extend"]
+    assert extends  # the two nearly-meeting lines joined
+    seg = max(segs, key=lambda s: s["extension_m"])
+    assert seg["provenance"] == "inferred"
+    assert seg["extension_m"] > 0.2  # ~0.25 m extension to reach the other line
+    assert seg["length"]["value"] > 3.9  # now spans the full ~4 m
+    half = (seg["length"]["ci_high"] - seg["length"]["ci_low"]) / 2
+    assert half >= seg["extension_m"]  # interval widened by the extension length
+
+
+def test_evidence_explained_full_for_clean_room() -> None:
+    s2 = reconstruct_walls(_payload(), Config())
+    ev = s2["evidence"]
+    assert ev["cells_unexplained"] == 0
+    assert ev["evidence_explained"] == 1.0
+    assert ev["evidence_explained_kept"] == 1.0
+
+
+def test_low_support_noise_is_unexplained() -> None:
+    s2 = reconstruct_walls(_payload(ghosts=50), Config())
+    ev = s2["evidence"]
+    assert ev["cells_unexplained"] >= 50  # the ghosts are not near any segment
+    assert ev["evidence_explained"] < 1.0
+
+
 def test_deterministic_byte_identical() -> None:
-    s1 = _stage1_payload()
+    s1 = _payload(inner=True, ghosts=10)
     a = reconstruct_walls(s1, Config())
     b = reconstruct_walls(s1, Config())
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
 
 
 def test_degenerate_no_wall_cells_does_not_fail() -> None:
-    s1 = _stage1_payload()
+    s1 = _payload()
     s1["layers"]["wall_cells"] = []
     s1["layer_counts"]["wall_cells"] = 0
     s2 = reconstruct_walls(s1, Config())
-    assert all(w["state"] == "unobserved" for w in s2["walls"])
-    assert s2["cells"]["kept"] == 0
+    assert s2["wall_count"] == 0
+    assert s2["evidence"]["evidence_explained"] == 0.0
     assert any("too few wall cells" in w for w in s2["warnings"])
 
 
-def test_empty_camera_path_does_not_fail() -> None:
-    s1 = _stage1_payload()
-    s1["camera_xz"] = []
-    s2 = reconstruct_walls(s1, Config())
-    assert all(w["state"] == "unobserved" for w in s2["walls"])
-    assert s2["camera_inside_walls_fraction"] is None
-
-
-def test_cli_run_writes_stage2_walls(make_lidar_bundle, tmp_path: Path) -> None:
+def test_cli_run_writes_segments_and_camera_markers(make_lidar_bundle, tmp_path: Path) -> None:
     cap = make_lidar_bundle(tmp_path, n_frames=2, shape=(8, 8))
     out_dir = tmp_path / "out"
     result = CliRunner().invoke(app, ["run", str(cap), "--out", str(out_dir)])
@@ -166,5 +198,7 @@ def test_cli_run_writes_stage2_walls(make_lidar_bundle, tmp_path: Path) -> None:
     assert stage2.is_file()
     assert (out_dir / cap.name / "stage2_walls.svg").is_file()
     data = json.loads(stage2.read_text())
-    assert data["name"] == "wall reconstruction"
-    assert len(data["walls"]) == 4
+    assert data["name"] == "wall segments"
+    assert "segments" in data
+    stage1 = json.loads((out_dir / cap.name / "stage1_observed.json").read_text())
+    assert "camera_start" in stage1 and "camera_end" in stage1
