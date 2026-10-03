@@ -4,6 +4,20 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — stage 2 wall graph (nodes + edges after completion)
+- New `src/scan2plan/geometry/wall_graph.py`: after completion, every vertical ×
+  horizontal wall intersection becomes a **node** (a stub ≤ `max_extend_m` the camera
+  did not cross is allowed, tagged inferred); nodes merge within `node_merge_m`;
+  collinear touching segments become **one edge**; each node is typed by its incident
+  directions (`L` / `T` / `cross` / `dangling_end`); **every** free end is a dangling
+  flag with a location (no silent open ends). New append-only I4 keys `node_tol_m`,
+  `node_merge_m`.
+- `stage2_walls.json` gains `graph` (`node_count`, `edge_count`, `counts`,
+  `nodes{id,uv,world,type,inferred}`, `edges{id,node_a,node_b,length_m,ci_m,provenance}`,
+  `dangling_ends[]`); the SVG draws nodes (L circle, T square, cross diamond,
+  dangling red ring); the CLI reports node/edge counts per type.
+- Seeds: 15 / 44 / 52 nodes (11 / 44 / 62 edges). Tests `tests/test_wall_graph.py`.
+
 ### 04i — stage 2 wall completion (bridge broken lines, keep openings)
 - New `src/scan2plan/geometry/wall_complete.py`, adapted from the standalone
   `wall_complete.py` prototype to our system: I4-config thresholds, typed

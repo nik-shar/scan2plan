@@ -73,6 +73,24 @@ large collinear gap, which the literal rule records as a single opening (a wide
 passage, or two wall runs with a walk-through between them). No evidence-free gap
 long enough to stay `unknown` survived on the seeds.
 
+## 3c. Wall graph (`geometry/wall_graph.py`)
+
+After completion, wall intersections become **nodes** and merged wall runs become
+**edges**. Node types: `L` (corner), `T`, `cross`, `dangling_end` (a free end, also
+flagged). Every dangling node also appears in `dangling_ends[]` with a uv + world
+location, so open ends are never silent.
+
+| capture | nodes | edges | L | T | cross | dangling_end |
+|---|---|---|---|---|---|---|
+| `c00a170fe1` | 15 | 11 | 3 | 2 | 0 | 10 |
+| `1a8384c3f6` | 44 | 44 | 10 | 11 | 4 | 19 |
+| `c7d28f72c6` | 52 | 62 | 6 | 24 | 6 | 16 |
+
+`c00a170fe1` (`single_room`) is still fragmentary — 10 of 15 nodes are dangling ends
+— because it is a short, furniture-heavy partial scan; the two longer walks
+(`1a8384c3f6`, `c7d28f72c6`) yield richer graphs with cross junctions. Node drawing:
+L = circle, T = square, cross = diamond, dangling = red ring.
+
 ## 4. Honest limitations
 
 - **`evidence_explained` over *all* cells is low (15–21%)** because ~58% of stage-1

@@ -144,10 +144,16 @@ outermost lines); that is **rejected** here because the seed `c00a170fe1` has
      `unknown` (left open, flagged). Dangling ends extend to a perpendicular wall
      (`inferred_extension`). Every inferred piece's interval is
      `ci_base_m + ci_per_m · assumed_length`.
+  7. **graph** (`geometry/wall_graph.py`): every vertical × horizontal intersection
+     is a **node** (inside both spans, tol `node_tol_m`; else a stub ≤ `max_extend_m`
+     the camera did not cross → node, inferred). Nodes merge within `node_merge_m`;
+     collinear touching segments become **one edge**; each node is typed by its
+     incident directions (`L` / `T` / `cross` / `dangling_end`); **every** free end
+     is a dangling flag (no silent open ends).
   Every threshold is an I4 `outline` key (new: `merge_tol_m`, `join_tol_m`,
   `evidence_tol_m`, `collinear_tol_m`, `occ_band_m`, `occ_min_cells`,
-  `dropout_max_m`, `max_extend_m`, `perp_tol_m`, `ci_base_m`, `ci_per_m`, all
-  append-only); no frozen-interface change.
+  `dropout_max_m`, `max_extend_m`, `perp_tol_m`, `ci_base_m`, `ci_per_m`,
+  `node_tol_m`, `node_merge_m`, all append-only); no frozen-interface change.
 
 **Explainability / evidence.** Each segment carries `support`, `coverage`,
 `provenance` (`observed` | `inferred_occluded` | `inferred_dropout` |
@@ -170,6 +176,11 @@ Median wall-length interval: ±1.8 cm / ±3.2 cm / ±3.2 cm. Per-segment lengths
 support/coverage and the full before/after breakdown live in
 `docs/plans/04i-stage2-report.md` and `bench/stage2_{before,after}/`.
 
+**Graph (nodes / edges).** `c00a170fe1` 15/11 (L 3, T 2, cross 0, dangling 10);
+`1a8384c3f6` 44/44 (L 10, T 11, cross 4, dangling 19); `c7d28f72c6` 52/62 (L 6,
+T 24, cross 6, dangling 16). Every `dangling_end` node also appears in
+`dangling_ends[]` with a location — no silent open ends.
+
 **Known limitations (honest).**
 - Stage 1 caps each layer at `EVIDENCE_LAYER_CAP = 60,000` cells, so on the two
   large seeds stage 2 fits a deterministic subsample and warns `stage1_layer_capped`
@@ -181,12 +192,12 @@ support/coverage and the full before/after breakdown live in
   large **opening** — the rule is literal (camera crossed ⇒ opening), so wide
   passages / two wall runs with a walk-through are not further classified yet.
 
-**Tests** `tests/test_wall_complete.py` (5, ported from the prototype) and
-`tests/test_stage2_walls.py` (14): outer + inner wall recovery, no closing rectangle,
-support-gate drop count, parallel-face merge with thickness, doorway split, junction
-extension `inferred_extension`, completion rules (dropout bridge, camera-crossed gap
-→ opening, furniture → occluded), evidence coverage, determinism, degenerate input,
-CLI segments + camera markers. `docs/stage1_contract.md` §2/§6 cover the new
+**Tests** `tests/test_wall_graph.py` (11): L/T/cross corners, node merge,
+collinear-touching → one edge, inferred extension node, camera crossing prevents an
+extension, dangling flags with locations, edge length/provenance, determinism, empty.
+Plus `tests/test_wall_complete.py` (5, ported from the prototype) and
+`tests/test_stage2_walls.py` (14): segment recovery, completion rules, evidence
+coverage, the graph keys, CLI. `docs/stage1_contract.md` §2/§6 cover the new
 `camera_start`/`camera_end` fields.
 
 

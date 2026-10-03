@@ -41,6 +41,1386 @@
       9.79
     ]
   },
+  "graph": {
+    "counts": {
+      "L": 6,
+      "T": 24,
+      "cross": 6,
+      "dangling_end": 16
+    },
+    "dangling_ends": [
+      {
+        "node_id": "n1",
+        "reason": "open_end",
+        "uv": [
+          -2.1723,
+          2.8774
+        ],
+        "world": [
+          -3.282,
+          1.4922
+        ]
+      },
+      {
+        "node_id": "n7",
+        "reason": "open_end",
+        "uv": [
+          -0.7125,
+          -4.4203
+        ],
+        "world": [
+          1.483,
+          -4.2246
+        ]
+      },
+      {
+        "node_id": "n16",
+        "reason": "open_end",
+        "uv": [
+          0.9923,
+          0.9906
+        ],
+        "world": [
+          0.3994,
+          1.344
+        ]
+      },
+      {
+        "node_id": "n17",
+        "reason": "open_end",
+        "uv": [
+          1.156,
+          1.6985
+        ],
+        "world": [
+          0.2055,
+          2.0443
+        ]
+      },
+      {
+        "node_id": "n26",
+        "reason": "open_end",
+        "uv": [
+          2.08,
+          6.6279
+        ],
+        "world": [
+          -1.3346,
+          6.8172
+        ]
+      },
+      {
+        "node_id": "n27",
+        "reason": "open_end",
+        "uv": [
+          2.0888,
+          8.6443
+        ],
+        "world": [
+          -2.289,
+          8.5934
+        ]
+      },
+      {
+        "node_id": "n28",
+        "reason": "open_end",
+        "uv": [
+          2.2814,
+          -5.216
+        ],
+        "world": [
+          4.4938,
+          -3.4953
+        ]
+      },
+      {
+        "node_id": "n35",
+        "reason": "open_end",
+        "uv": [
+          3.1949,
+          9.4724
+        ],
+        "world": [
+          -1.7121,
+          9.849
+        ]
+      },
+      {
+        "node_id": "n36",
+        "reason": "open_end",
+        "uv": [
+          4.0822,
+          0.4693
+        ],
+        "world": [
+          3.3636,
+          2.3603
+        ]
+      },
+      {
+        "node_id": "n41",
+        "reason": "open_end",
+        "uv": [
+          5.6597,
+          2.6665
+        ],
+        "world": [
+          3.7015,
+          5.0439
+        ]
+      },
+      {
+        "node_id": "n42",
+        "reason": "open_end",
+        "uv": [
+          6.2972,
+          6.0495
+        ],
+        "world": [
+          2.6475,
+          8.3212
+        ]
+      },
+      {
+        "node_id": "n45",
+        "reason": "open_end",
+        "uv": [
+          6.4455,
+          4.184
+        ],
+        "world": [
+          3.668,
+          6.7525
+        ]
+      },
+      {
+        "node_id": "n46",
+        "reason": "open_end",
+        "uv": [
+          6.7564,
+          4.7932
+        ],
+        "world": [
+          3.6505,
+          7.4362
+        ]
+      },
+      {
+        "node_id": "n47",
+        "reason": "open_end",
+        "uv": [
+          7.5925,
+          4.2495
+        ],
+        "world": [
+          4.6447,
+          7.3574
+        ]
+      },
+      {
+        "node_id": "n51",
+        "reason": "open_end",
+        "uv": [
+          8.8351,
+          4.5991
+        ],
+        "world": [
+          5.5699,
+          8.2575
+        ]
+      },
+      {
+        "node_id": "n52",
+        "reason": "open_end",
+        "uv": [
+          8.9472,
+          6.0495
+        ],
+        "world": [
+          4.9764,
+          9.5856
+        ]
+      }
+    ],
+    "edge_count": 62,
+    "edges": [
+      {
+        "ci_m": 0.1558,
+        "id": "e1",
+        "length_m": 3.3536,
+        "node_a": "n7",
+        "node_b": "n10",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.1558,
+        "id": "e2",
+        "length_m": 3.0857,
+        "node_a": "n10",
+        "node_b": "n8",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.1558,
+        "id": "e3",
+        "length_m": 0.8385,
+        "node_a": "n8",
+        "node_b": "n9",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.3225,
+        "id": "e4",
+        "length_m": 2.1105,
+        "node_a": "n9",
+        "node_b": "n4",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.3225,
+        "id": "e5",
+        "length_m": 0.2704,
+        "node_a": "n4",
+        "node_b": "n5",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.3225,
+        "id": "e6",
+        "length_m": 0.3139,
+        "node_a": "n5",
+        "node_b": "n6",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.3225,
+        "id": "e7",
+        "length_m": 3.0921,
+        "node_a": "n6",
+        "node_b": "n2",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0394,
+        "id": "e8",
+        "length_m": 0.3481,
+        "node_a": "n2",
+        "node_b": "n3",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.1566,
+        "id": "e9",
+        "length_m": 0.2704,
+        "node_a": "n11",
+        "node_b": "n12",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1566,
+        "id": "e10",
+        "length_m": 0.3139,
+        "node_a": "n12",
+        "node_b": "n13",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1566,
+        "id": "e11",
+        "length_m": 3.0921,
+        "node_a": "n13",
+        "node_b": "n14",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1566,
+        "id": "e12",
+        "length_m": 0.3481,
+        "node_a": "n14",
+        "node_b": "n15",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e13",
+        "length_m": 0.3205,
+        "node_a": "n17",
+        "node_b": "n18",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e14",
+        "length_m": 0.8385,
+        "node_a": "n18",
+        "node_b": "n19",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e15",
+        "length_m": 1.057,
+        "node_a": "n19",
+        "node_b": "n20",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e16",
+        "length_m": 1.0534,
+        "node_a": "n20",
+        "node_b": "n21",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e17",
+        "length_m": 0.2704,
+        "node_a": "n21",
+        "node_b": "n22",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e18",
+        "length_m": 0.3139,
+        "node_a": "n22",
+        "node_b": "n23",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e19",
+        "length_m": 0.3139,
+        "node_a": "n24",
+        "node_b": "n25",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e20",
+        "length_m": 1.0757,
+        "node_a": "n25",
+        "node_b": "n26",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.3374,
+        "id": "e21",
+        "length_m": 4.1493,
+        "node_a": "n28",
+        "node_b": "n29",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.3374,
+        "id": "e22",
+        "length_m": 1.536,
+        "node_a": "n29",
+        "node_b": "n30",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e23",
+        "length_m": 0.5213,
+        "node_a": "n30",
+        "node_b": "n31",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e24",
+        "length_m": 2.924,
+        "node_a": "n31",
+        "node_b": "n32",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e25",
+        "length_m": 4.1993,
+        "node_a": "n33",
+        "node_b": "n34",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e26",
+        "length_m": 0.4799,
+        "node_a": "n34",
+        "node_b": "n35",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e27",
+        "length_m": 3.7786,
+        "node_a": "n37",
+        "node_b": "n38",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e28",
+        "length_m": 1.0825,
+        "node_a": "n38",
+        "node_b": "n39",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.1402,
+        "id": "e29",
+        "length_m": 2.7344,
+        "node_a": "n40",
+        "node_b": "n41",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e30",
+        "length_m": 0.8267,
+        "node_a": "n43",
+        "node_b": "n44",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e31",
+        "length_m": 0.4733,
+        "node_a": "n44",
+        "node_b": "n45",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0326,
+        "id": "e32",
+        "length_m": 2.9651,
+        "node_a": "n48",
+        "node_b": "n49",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0326,
+        "id": "e33",
+        "length_m": 1.3523,
+        "node_a": "n49",
+        "node_b": "n50",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0326,
+        "id": "e34",
+        "length_m": 0.3496,
+        "node_a": "n50",
+        "node_b": "n51",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1,
+        "id": "e35",
+        "length_m": 2.9865,
+        "node_a": "n10",
+        "node_b": "n29",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0303,
+        "id": "e36",
+        "length_m": 0.3054,
+        "node_a": "n37",
+        "node_b": "n40",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0303,
+        "id": "e37",
+        "length_m": 3.1754,
+        "node_a": "n40",
+        "node_b": "n48",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e38",
+        "length_m": 1.7772,
+        "node_a": "n30",
+        "node_b": "n36",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e39",
+        "length_m": 1.3127,
+        "node_a": "n16",
+        "node_b": "n31",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.039,
+        "id": "e40",
+        "length_m": 1.8598,
+        "node_a": "n8",
+        "node_b": "n18",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e41",
+        "length_m": 1.4685,
+        "node_a": "n1",
+        "node_b": "n9",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e42",
+        "length_m": 1.8598,
+        "node_a": "n9",
+        "node_b": "n19",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e43",
+        "length_m": 5.2896,
+        "node_a": "n19",
+        "node_b": "n43",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e44",
+        "length_m": 2.3895,
+        "node_a": "n43",
+        "node_b": "n49",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e45",
+        "length_m": 1.0913,
+        "node_a": "n38",
+        "node_b": "n44",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e46",
+        "length_m": 1.149,
+        "node_a": "n20",
+        "node_b": "n32",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e47",
+        "length_m": 1.2426,
+        "node_a": "n47",
+        "node_b": "n50",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e48",
+        "length_m": 2.1594,
+        "node_a": "n33",
+        "node_b": "n39",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e49",
+        "length_m": 1.4021,
+        "node_a": "n39",
+        "node_b": "n46",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0867,
+        "id": "e50",
+        "length_m": 1.069,
+        "node_a": "n4",
+        "node_b": "n11",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0867,
+        "id": "e51",
+        "length_m": 0.8028,
+        "node_a": "n11",
+        "node_b": "n21",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0893,
+        "id": "e52",
+        "length_m": 1.069,
+        "node_a": "n5",
+        "node_b": "n12",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0893,
+        "id": "e53",
+        "length_m": 0.8028,
+        "node_a": "n12",
+        "node_b": "n22",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0893,
+        "id": "e54",
+        "length_m": 0.924,
+        "node_a": "n22",
+        "node_b": "n24",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1234,
+        "id": "e55",
+        "length_m": 1.069,
+        "node_a": "n6",
+        "node_b": "n13",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1234,
+        "id": "e56",
+        "length_m": 0.8028,
+        "node_a": "n13",
+        "node_b": "n23",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.1234,
+        "id": "e57",
+        "length_m": 0.924,
+        "node_a": "n23",
+        "node_b": "n25",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e58",
+        "length_m": 2.65,
+        "node_a": "n42",
+        "node_b": "n52",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e59",
+        "length_m": 1.084,
+        "node_a": "n2",
+        "node_b": "n14",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e60",
+        "length_m": 1.7357,
+        "node_a": "n14",
+        "node_b": "n27",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0323,
+        "id": "e61",
+        "length_m": 1.084,
+        "node_a": "n3",
+        "node_b": "n15",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0323,
+        "id": "e62",
+        "length_m": 2.8418,
+        "node_a": "n15",
+        "node_b": "n34",
+        "provenance": "inferred_extension"
+      }
+    ],
+    "node_count": 52,
+    "nodes": [
+      {
+        "id": "n1",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -2.1723,
+          2.8774
+        ],
+        "world": [
+          -3.282,
+          1.4922
+        ]
+      },
+      {
+        "id": "n2",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          -0.7309,
+          8.6443
+        ],
+        "world": [
+          -4.767,
+          7.248
+        ]
+      },
+      {
+        "id": "n3",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          -0.7309,
+          8.9925
+        ],
+        "world": [
+          -4.9332,
+          7.554
+        ]
+      },
+      {
+        "id": "n4",
+        "inferred": true,
+        "type": "T",
+        "uv": [
+          -0.7159,
+          4.968
+        ],
+        "world": [
+          -2.9997,
+          4.0244
+        ]
+      },
+      {
+        "id": "n5",
+        "inferred": true,
+        "type": "T",
+        "uv": [
+          -0.7159,
+          5.2383
+        ],
+        "world": [
+          -3.1286,
+          4.2619
+        ]
+      },
+      {
+        "id": "n6",
+        "inferred": true,
+        "type": "T",
+        "uv": [
+          -0.7159,
+          5.5522
+        ],
+        "world": [
+          -3.2784,
+          4.5378
+        ]
+      },
+      {
+        "id": "n7",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -0.7125,
+          -4.4203
+        ],
+        "world": [
+          1.483,
+          -4.2246
+        ]
+      },
+      {
+        "id": "n8",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          -0.7038,
+          2.019
+        ],
+        "world": [
+          -1.5819,
+          1.4385
+        ]
+      },
+      {
+        "id": "n9",
+        "inferred": false,
+        "type": "cross",
+        "uv": [
+          -0.7038,
+          2.8575
+        ],
+        "world": [
+          -1.982,
+          2.1754
+        ]
+      },
+      {
+        "id": "n10",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          -0.6933,
+          -1.0667
+        ],
+        "world": [
+          -0.1003,
+          -1.2682
+        ]
+      },
+      {
+        "id": "n11",
+        "inferred": true,
+        "type": "T",
+        "uv": [
+          0.3531,
+          4.968
+        ],
+        "world": [
+          -2.0602,
+          4.5344
+        ]
+      },
+      {
+        "id": "n12",
+        "inferred": false,
+        "type": "cross",
+        "uv": [
+          0.3531,
+          5.2383
+        ],
+        "world": [
+          -2.1892,
+          4.772
+        ]
+      },
+      {
+        "id": "n13",
+        "inferred": false,
+        "type": "cross",
+        "uv": [
+          0.3531,
+          5.5522
+        ],
+        "world": [
+          -2.339,
+          5.0479
+        ]
+      },
+      {
+        "id": "n14",
+        "inferred": false,
+        "type": "cross",
+        "uv": [
+          0.3531,
+          8.6443
+        ],
+        "world": [
+          -3.8144,
+          7.7652
+        ]
+      },
+      {
+        "id": "n15",
+        "inferred": true,
+        "type": "T",
+        "uv": [
+          0.3531,
+          8.9925
+        ],
+        "world": [
+          -3.9805,
+          8.0712
+        ]
+      },
+      {
+        "id": "n16",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          0.9923,
+          0.9906
+        ],
+        "world": [
+          0.3994,
+          1.344
+        ]
+      },
+      {
+        "id": "n17",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          1.156,
+          1.6985
+        ],
+        "world": [
+          0.2055,
+          2.0443
+        ]
+      },
+      {
+        "id": "n18",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          1.156,
+          2.019
+        ],
+        "world": [
+          0.0525,
+          2.3259
+        ]
+      },
+      {
+        "id": "n19",
+        "inferred": false,
+        "type": "cross",
+        "uv": [
+          1.156,
+          2.8575
+        ],
+        "world": [
+          -0.3476,
+          3.0628
+        ]
+      },
+      {
+        "id": "n20",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          1.156,
+          3.9145
+        ],
+        "world": [
+          -0.8519,
+          3.9917
+        ]
+      },
+      {
+        "id": "n21",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          1.156,
+          4.968
+        ],
+        "world": [
+          -1.3546,
+          4.9176
+        ]
+      },
+      {
+        "id": "n22",
+        "inferred": false,
+        "type": "cross",
+        "uv": [
+          1.156,
+          5.2383
+        ],
+        "world": [
+          -1.4836,
+          5.1551
+        ]
+      },
+      {
+        "id": "n23",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          1.156,
+          5.5522
+        ],
+        "world": [
+          -1.6334,
+          5.431
+        ]
+      },
+      {
+        "id": "n24",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          2.08,
+          5.2383
+        ],
+        "world": [
+          -0.6716,
+          5.596
+        ]
+      },
+      {
+        "id": "n25",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          2.08,
+          5.5522
+        ],
+        "world": [
+          -0.8213,
+          5.8719
+        ]
+      },
+      {
+        "id": "n26",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          2.08,
+          6.6279
+        ],
+        "world": [
+          -1.3346,
+          6.8172
+        ]
+      },
+      {
+        "id": "n27",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          2.0888,
+          8.6443
+        ],
+        "world": [
+          -2.289,
+          8.5934
+        ]
+      },
+      {
+        "id": "n28",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          2.2814,
+          -5.216
+        ],
+        "world": [
+          4.4938,
+          -3.4953
+        ]
+      },
+      {
+        "id": "n29",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          2.2932,
+          -1.0667
+        ],
+        "world": [
+          2.5243,
+          0.1568
+        ]
+      },
+      {
+        "id": "n30",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          2.305,
+          0.4693
+        ],
+        "world": [
+          1.8017,
+          1.5123
+        ]
+      },
+      {
+        "id": "n31",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          2.305,
+          0.9906
+        ],
+        "world": [
+          1.553,
+          1.9704
+        ]
+      },
+      {
+        "id": "n32",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          2.305,
+          3.9145
+        ],
+        "world": [
+          0.1578,
+          4.54
+        ]
+      },
+      {
+        "id": "n33",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          3.1949,
+          4.7932
+        ],
+        "world": [
+          0.5206,
+          5.7368
+        ]
+      },
+      {
+        "id": "n34",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          3.1949,
+          8.9925
+        ],
+        "world": [
+          -1.4831,
+          9.4272
+        ]
+      },
+      {
+        "id": "n35",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          3.1949,
+          9.4724
+        ],
+        "world": [
+          -1.7121,
+          9.849
+        ]
+      },
+      {
+        "id": "n36",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          4.0822,
+          0.4693
+        ],
+        "world": [
+          3.3636,
+          2.3603
+        ]
+      },
+      {
+        "id": "n37",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          5.3542,
+          -0.0679
+        ],
+        "world": [
+          4.7378,
+          2.4951
+        ]
+      },
+      {
+        "id": "n38",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          5.3542,
+          3.7107
+        ],
+        "world": [
+          2.9348,
+          5.8158
+        ]
+      },
+      {
+        "id": "n39",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          5.3542,
+          4.7932
+        ],
+        "world": [
+          2.4182,
+          6.7671
+        ]
+      },
+      {
+        "id": "n40",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          5.6597,
+          -0.0679
+        ],
+        "world": [
+          5.0062,
+          2.6409
+        ]
+      },
+      {
+        "id": "n41",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          5.6597,
+          2.6665
+        ],
+        "world": [
+          3.7015,
+          5.0439
+        ]
+      },
+      {
+        "id": "n42",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          6.2972,
+          6.0495
+        ],
+        "world": [
+          2.6475,
+          8.3212
+        ]
+      },
+      {
+        "id": "n43",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          6.4455,
+          2.884
+        ],
+        "world": [
+          4.2883,
+          5.61
+        ]
+      },
+      {
+        "id": "n44",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          6.4455,
+          3.7107
+        ],
+        "world": [
+          3.8938,
+          6.3366
+        ]
+      },
+      {
+        "id": "n45",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          6.4455,
+          4.184
+        ],
+        "world": [
+          3.668,
+          6.7525
+        ]
+      },
+      {
+        "id": "n46",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          6.7564,
+          4.7932
+        ],
+        "world": [
+          3.6505,
+          7.4362
+        ]
+      },
+      {
+        "id": "n47",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          7.5925,
+          4.2495
+        ],
+        "world": [
+          4.6447,
+          7.3574
+        ]
+      },
+      {
+        "id": "n48",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          8.8351,
+          -0.0679
+        ],
+        "world": [
+          7.7968,
+          4.1561
+        ]
+      },
+      {
+        "id": "n49",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          8.8351,
+          2.8972
+        ],
+        "world": [
+          6.382,
+          6.7619
+        ]
+      },
+      {
+        "id": "n50",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          8.8351,
+          4.2495
+        ],
+        "world": [
+          5.7368,
+          7.9503
+        ]
+      },
+      {
+        "id": "n51",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          8.8351,
+          4.5991
+        ],
+        "world": [
+          5.5699,
+          8.2575
+        ]
+      },
+      {
+        "id": "n52",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          8.9472,
+          6.0495
+        ],
+        "world": [
+          4.9764,
+          9.5856
+        ]
+      }
+    ]
+  },
   "inferred_count": 14,
   "junctions": [
     {

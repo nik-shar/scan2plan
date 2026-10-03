@@ -41,6 +41,425 @@
       5.51
     ]
   },
+  "graph": {
+    "counts": {
+      "L": 3,
+      "T": 2,
+      "cross": 0,
+      "dangling_end": 10
+    },
+    "dangling_ends": [
+      {
+        "node_id": "n1",
+        "reason": "open_end",
+        "uv": [
+          -5.5306,
+          2.457
+        ],
+        "world": [
+          -6.0499,
+          0.1535
+        ]
+      },
+      {
+        "node_id": "n2",
+        "reason": "open_end",
+        "uv": [
+          -5.5306,
+          4.007
+        ],
+        "world": [
+          -6.643,
+          1.5855
+        ]
+      },
+      {
+        "node_id": "n3",
+        "reason": "open_end",
+        "uv": [
+          -4.1257,
+          1.3674
+        ],
+        "world": [
+          -4.3349,
+          -0.3155
+        ]
+      },
+      {
+        "node_id": "n4",
+        "reason": "open_end",
+        "uv": [
+          -4.1257,
+          2.5674
+        ],
+        "world": [
+          -4.7942,
+          0.7931
+        ]
+      },
+      {
+        "node_id": "n5",
+        "reason": "open_end",
+        "uv": [
+          -3.6307,
+          3.6078
+        ],
+        "world": [
+          -4.735,
+          1.9438
+        ]
+      },
+      {
+        "node_id": "n6",
+        "reason": "open_end",
+        "uv": [
+          -1.1369,
+          -1.1031
+        ],
+        "world": [
+          -0.6282,
+          -1.4542
+        ]
+      },
+      {
+        "node_id": "n7",
+        "reason": "open_end",
+        "uv": [
+          -0.2433,
+          4.8731
+        ],
+        "world": [
+          -2.0896,
+          4.4091
+        ]
+      },
+      {
+        "node_id": "n9",
+        "reason": "open_end",
+        "uv": [
+          -0.0621,
+          3.0482
+        ],
+        "world": [
+          -1.2239,
+          2.7924
+        ]
+      },
+      {
+        "node_id": "n10",
+        "reason": "open_end",
+        "uv": [
+          0.1693,
+          3.6078
+        ],
+        "world": [
+          -1.2242,
+          3.398
+        ]
+      },
+      {
+        "node_id": "n11",
+        "reason": "open_end",
+        "uv": [
+          1.087,
+          3.2172
+        ],
+        "world": [
+          -0.2269,
+          3.3883
+        ]
+      }
+    ],
+    "edge_count": 11,
+    "edges": [
+      {
+        "ci_m": 0.0,
+        "id": "e1",
+        "length_m": 1.55,
+        "node_a": "n1",
+        "node_b": "n2",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e2",
+        "length_m": 1.2,
+        "node_a": "n3",
+        "node_b": "n4",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e3",
+        "length_m": 1.1467,
+        "node_a": "n8",
+        "node_b": "n9",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0366,
+        "id": "e4",
+        "length_m": 3.0046,
+        "node_a": "n12",
+        "node_b": "n13",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0366,
+        "id": "e5",
+        "length_m": 1.3158,
+        "node_a": "n13",
+        "node_b": "n14",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.0366,
+        "id": "e6",
+        "length_m": 1.6559,
+        "node_a": "n14",
+        "node_b": "n15",
+        "provenance": "inferred_extension"
+      },
+      {
+        "ci_m": 0.105,
+        "id": "e7",
+        "length_m": 3.4947,
+        "node_a": "n6",
+        "node_b": "n12",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e8",
+        "length_m": 2.4198,
+        "node_a": "n8",
+        "node_b": "n13",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e9",
+        "length_m": 1.2708,
+        "node_a": "n11",
+        "node_b": "n14",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e10",
+        "length_m": 3.8,
+        "node_a": "n5",
+        "node_b": "n10",
+        "provenance": "observed"
+      },
+      {
+        "ci_m": 0.0,
+        "id": "e11",
+        "length_m": 2.601,
+        "node_a": "n7",
+        "node_b": "n15",
+        "provenance": "observed"
+      }
+    ],
+    "node_count": 15,
+    "nodes": [
+      {
+        "id": "n1",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -5.5306,
+          2.457
+        ],
+        "world": [
+          -6.0499,
+          0.1535
+        ]
+      },
+      {
+        "id": "n2",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -5.5306,
+          4.007
+        ],
+        "world": [
+          -6.643,
+          1.5855
+        ]
+      },
+      {
+        "id": "n3",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -4.1257,
+          1.3674
+        ],
+        "world": [
+          -4.3349,
+          -0.3155
+        ]
+      },
+      {
+        "id": "n4",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -4.1257,
+          2.5674
+        ],
+        "world": [
+          -4.7942,
+          0.7931
+        ]
+      },
+      {
+        "id": "n5",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -3.6307,
+          3.6078
+        ],
+        "world": [
+          -4.735,
+          1.9438
+        ]
+      },
+      {
+        "id": "n6",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -1.1369,
+          -1.1031
+        ],
+        "world": [
+          -0.6282,
+          -1.4542
+        ]
+      },
+      {
+        "id": "n7",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -0.2433,
+          4.8731
+        ],
+        "world": [
+          -2.0896,
+          4.4091
+        ]
+      },
+      {
+        "id": "n8",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          -0.0621,
+          1.9015
+        ],
+        "world": [
+          -0.785,
+          1.733
+        ]
+      },
+      {
+        "id": "n9",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          -0.0621,
+          3.0482
+        ],
+        "world": [
+          -1.2239,
+          2.7924
+        ]
+      },
+      {
+        "id": "n10",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          0.1693,
+          3.6078
+        ],
+        "world": [
+          -1.2242,
+          3.398
+        ]
+      },
+      {
+        "id": "n11",
+        "inferred": false,
+        "type": "dangling_end",
+        "uv": [
+          1.087,
+          3.2172
+        ],
+        "world": [
+          -0.2269,
+          3.3883
+        ]
+      },
+      {
+        "id": "n12",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          2.3578,
+          -1.1031
+        ],
+        "world": [
+          2.6005,
+          -0.1168
+        ]
+      },
+      {
+        "id": "n13",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          2.3578,
+          1.9015
+        ],
+        "world": [
+          1.4507,
+          2.659
+        ]
+      },
+      {
+        "id": "n14",
+        "inferred": false,
+        "type": "T",
+        "uv": [
+          2.3578,
+          3.2172
+        ],
+        "world": [
+          0.9472,
+          3.8746
+        ]
+      },
+      {
+        "id": "n15",
+        "inferred": false,
+        "type": "L",
+        "uv": [
+          2.3578,
+          4.8731
+        ],
+        "world": [
+          0.3135,
+          5.4044
+        ]
+      }
+    ]
+  },
   "inferred_count": 2,
   "junctions": [
     {

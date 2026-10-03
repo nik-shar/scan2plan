@@ -4,8 +4,6 @@
       "capture": "c00a170fe1",
       "angle": 22.5,
       "segments": 11,
-      "observed": 9,
-      "inferred": 2,
       "openings": 0,
       "unknown_gaps": 0,
       "completion": {
@@ -15,6 +13,15 @@
         "openings": 0,
         "unknown_gaps": 0
       },
+      "nodes": 15,
+      "edges": 11,
+      "node_counts": {
+        "L": 3,
+        "T": 2,
+        "cross": 0,
+        "dangling_end": 10
+      },
+      "dangling_ends": 10,
       "evidence_explained_before_rect": 0.1148,
       "evidence_explained": 0.2101,
       "evidence_explained_kept": 0.589,
@@ -25,8 +32,6 @@
       "capture": "1a8384c3f6",
       "angle": 87.0,
       "segments": 37,
-      "observed": 21,
-      "inferred": 16,
       "openings": 1,
       "unknown_gaps": 0,
       "completion": {
@@ -36,6 +41,15 @@
         "openings": 1,
         "unknown_gaps": 0
       },
+      "nodes": 44,
+      "edges": 44,
+      "node_counts": {
+        "L": 10,
+        "T": 11,
+        "cross": 4,
+        "dangling_end": 19
+      },
+      "dangling_ends": 19,
       "evidence_explained_before_rect": 0.0513,
       "evidence_explained": 0.1489,
       "evidence_explained_kept": 0.3608,
@@ -46,8 +60,6 @@
       "capture": "c7d28f72c6",
       "angle": 28.5,
       "segments": 41,
-      "observed": 27,
-      "inferred": 14,
       "openings": 1,
       "unknown_gaps": 0,
       "completion": {
@@ -57,6 +69,15 @@
         "openings": 1,
         "unknown_gaps": 0
       },
+      "nodes": 52,
+      "edges": 62,
+      "node_counts": {
+        "L": 6,
+        "T": 24,
+        "cross": 6,
+        "dangling_end": 16
+      },
+      "dangling_ends": 16,
       "evidence_explained_before_rect": 0.038,
       "evidence_explained": 0.1659,
       "evidence_explained_kept": 0.4038,
