@@ -173,7 +173,7 @@ def _stage2_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
     if not stage1_path.is_file():
         return None
     stage1 = json.loads(stage1_path.read_text())
-    stage2 = reconstruct_walls(stage1, cfg)
+    stage2 = reconstruct_walls(stage1, cfg, tier=cir.session.tier)
     (out_dir / "stage2_walls.json").write_text(json.dumps(stage2, indent=2, sort_keys=True) + "\n")
     render_walls_svg(
         stage2,
@@ -188,12 +188,14 @@ def _report_stage2(stage2: dict[str, object] | None, out_dir: Path) -> None:
     """Print the stage-2 wall-reconstruction summary (shared by ``run``/``ablate``)."""
     if stage2 is None:
         return
-    walls = stage2.get("walls", [])
     cells = stage2.get("cells", {})
-    observed = sum(1 for w in walls if w.get("state") == "observed")  # type: ignore[union-attr]
+    ev = stage2.get("evidence", {})
     typer.echo(
-        f"  stage 2 walls: {observed}/{len(walls)} observed "  # type: ignore[arg-type]
-        f"(cells kept {cells.get('kept')}/{cells.get('input')})"  # type: ignore[union-attr]
+        f"  stage 2 walls: {stage2.get('wall_count')} segments "  # type: ignore[union-attr]
+        f"({stage2.get('inferred_count')} inferred), "  # type: ignore[union-attr]
+        f"evidence_explained {ev.get('evidence_explained')} "  # type: ignore[union-attr]
+        f"(kept {ev.get('evidence_explained_kept')}, "  # type: ignore[union-attr]
+        f"cells kept {cells.get('kept')}/{cells.get('input')})"  # type: ignore[union-attr]
     )
     for w in stage2.get("warnings", []):  # type: ignore[union-attr]
         typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
