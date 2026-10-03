@@ -4,6 +4,18 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 04i — stage 2: deterministic wall reconstruction (from stage 1 only)
+- New `src/scan2plan/geometry/walls.py::reconstruct_walls`: consumes the frozen
+  `stage1_observed.json` (**never** the raw cloud) and emits a `stage2_walls.{json,svg}`
+  sidecar — wall lines/segments only (no polygon/corners/openings; those are stage 3).
+- Deterministic (no RNG): support gate (`min_height_bins`) + Manhattan frame + the
+  per-side nearest long line beyond the camera path (ported `room_fit` logic).
+- Real seeds: `c00a170fe1` 3/4 walls observed (angle 23°); `1a8384c3f6` and
+  `c7d28f72c6` 4/4 (angle 87° / 28.5°), both with a `stage1_layer_capped` warning
+  (stage-1's `EVIDENCE_LAYER_CAP = 60000`).
+- `scan2plan run` / `ablate` now also write the stage-2 artifacts; docs updated
+  (`docs/stage1_contract.md` §6, `docs/plans/04i` §8).
+
 ### 04i cleanup — freeze stage 1, archive stage 2/3
 - Tagged `stage1-frozen` (stage-1 observed evidence).
 - Moved stage 2/3 (outline tracing, classification, snapping) to

@@ -6,16 +6,19 @@ interval on every measurement.
 
 Applied AI Engineer case study submission (Aug 2026).
 
-> **Status: Stage 1 frozen (`stage1-frozen`); stages 2+ are being redesigned.**
+> **Status: Stage 1 frozen (`stage1-frozen`); stage 2 landed; stages 3+ redesigned.**
 > Repo scaffold, config (I4), utilities, CLI (I5), frozen CIR (I2), published schema
 > (I3), and the confirmed B-0 depth-unit check are in place. Stage 1 is the
-> **observed-evidence** layer (`scan2plan run` (LiDAR tier) runs S1 ingest + S2 recon
-> and writes `stage1_observed.{json,svg}`), and it emits a schema-valid **stub**
-> `plan.json` with `status = "not_computed"`. Outline tracing, classification and
-> snapping were moved to `archive/old_stage23/` (see `docs/stage1_contract.md` and
-> `docs/plans/04i`). The tested wall finder `scan2plan.geometry.room_fit` is kept,
-> unused by default. `scan2plan ablate` is pending the redesign; damage/scope/
-> calibration stages (S5–S8) land later. See `docs/plans/`.
+> **observed-evidence** layer and stage 2 is **deterministic wall reconstruction**:
+> `scan2plan run` (LiDAR tier) runs S1 ingest + S2 recon, writes
+> `stage1_observed.{json,svg}`, then reconstructs walls into `stage2_walls.{json,svg}`
+> **from the stage-1 artifact only** (never the raw cloud), and emits a schema-valid
+> **stub** `plan.json` with `status = "not_computed"`. Outline closing, classification
+> and snapping were moved to `archive/old_stage23/` for redesign (see
+> `docs/stage1_contract.md` and `docs/plans/04i`). The tested wall finder
+> `scan2plan.geometry.room_fit` is kept, unused by default. `scan2plan ablate` is
+> pending the redesign; damage/scope/calibration stages (S5–S8) land later. See
+> `docs/plans/`.
 
 ## Interfaces (frozen contracts)
 
@@ -47,7 +50,7 @@ Requires Python 3.11+.
 ## CLI
 
 ```
-scan2plan run <capture_dir> [--config cfg.yaml] [--out out/]   # S1+S2 + stage-1 evidence + stub plan
+scan2plan run <capture_dir> [--config cfg.yaml] [--out out/]   # S1+S2 + stage-1 evidence + stage-2 walls + stub plan
 scan2plan ingest <capture_dir>                                 # S1 only
 scan2plan ablate --capture <id> --feature loop_closure         # pending stage 2/3 redesign
 scan2plan bench [--tier photos|video|lidar]                    # benchmark gates
