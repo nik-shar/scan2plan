@@ -59,13 +59,19 @@ Map `surface_id` + damage → repair task with **quantity/unit**:
 
 ## 5. Tasks
 
-| ID | Task | Done when |
-|---|---|---|
-| D-1 | Segmenter wired (disclosed model) | masks on staged room |
-| D-2 | Classifier (closed taxonomy) | 2 staged classes separated |
-| D-3 | Surface projection + metric extent | area/bbox in metres |
-| D-4 | Rule engine + ids | flag carries `rule_id` |
-| D-5 | Scope mapper | items keyed to surfaces |
+| ID | Task | Done when | Status |
+|---|---|---|---|
+| D-1 | Segmenter wired (disclosed model) | masks on staged room | 🟡 disclosed colour heuristic (`damage/detect.py`); SAM/CLIP hook documented |
+| D-2 | Classifier (closed taxonomy) | 2 staged classes separated | ✅ `mold` / `water_stain` / `crack` / `paint_peel` heuristics |
+| D-3 | Surface projection + metric extent | area/bbox in metres | ✅ `damage/evidence.py` (depth -> nearest wall plane) + `Extent` |
+| D-4 | Rule engine + ids | flag carries `rule_id` | ✅ `damage/rules.py` (`R-CONCEAL-*`) |
+| D-5 | Scope mapper | items keyed to surfaces | ✅ `damage/scope.py` (`Measurement` quantities) |
+
+Implemented in `src/scan2plan/damage/` and wired into `scan2plan run` (writes
+`damage.json`; damage tinted on `plan.svg`). No ML runtime is required: the
+region proposer is a **disclosed, uncalibrated colour heuristic** over
+depth-projected surface evidence. `spalling`/`rot` remain in the published
+taxonomy but need the model hook. Thresholds live in the I4 `damage` block.
 
 ## 6. Risks
 

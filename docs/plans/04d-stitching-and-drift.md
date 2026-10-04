@@ -50,14 +50,20 @@ Each room is reconstructed locally. Stitching must place every room in one plan 
 
 ## 6. Tasks
 
-| ID | Task | Done when |
-|---|---|---|
-| S-1 | Room graph + connector matching | adjacency found on multi-room set |
-| S-2 | Loop-closure detection | closures reported with evidence |
-| S-3 | SE(2) pose-graph optimizer | consistent plan; residuals reported |
-| S-4 | Plane anchoring + overlap resolution | `overlap_ok=true` on benchmark |
-| S-5 | Ablation CLI + rendering | on/off footprints differ and are saved |
-| S-6 | Photo-folder stitch path | folders → one plan, no overlap |
+| ID | Task | Done when | Status |
+|---|---|---|---|
+| S-1 | Room graph + connector matching | adjacency found on multi-room set | ✅ `stitch/graph.py`; wired via `geometry/plan_geometry.py` (paired openings) |
+| S-2 | Loop-closure detection | closures reported with evidence | ✅ `stitch/closures.py` (deterministic ICP) |
+| S-3 | SE(2) pose-graph optimizer | consistent plan; residuals reported | ✅ `stitch/optimize.py` |
+| S-4 | Plane anchoring + overlap resolution | `overlap_ok=true` on benchmark | 🟡 overlap gate ✅; plane-anchoring fallback pending |
+| S-5 | Ablation CLI + rendering | on/off footprints differ and are saved | ✅ `stitch/wire.py` + `ablate` + `ablation.svg` |
+| S-6 | Photo-folder stitch path | folders → one plan, no overlap | ⬜ pending (needs 04b photo recon) |
+
+Wired into the pipeline by `src/scan2plan/stitch/wire.py` (`stitch_plan`,
+`rooms_connected`, `ablation_transforms`); `scan2plan run` populates `cir.stitch`,
+`scan2plan ablate` writes `ablation.svg`. Note: a single capture reconstructs all
+rooms in one shared frame, so the ablation is `on == off` when no revisit exists —
+reported honestly, not hidden.
 
 ## 7. Risks
 

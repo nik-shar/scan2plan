@@ -24,6 +24,53 @@ class Calibration(BaseModel):
     nominal: float = Field(default=0.9, gt=0.0, le=1.0)
 
 
+class DamageConfig(BaseModel):
+    """Damage-assessment thresholds (plan 04e, OUT-3/4/5).
+
+    Every number that decides a damage region, a concealed flag or a scope
+    quantity lives here so ``damage.json`` can record the exact parameters that
+    fired. The colour heuristics are **disclosed and uncalibrated** (plan 04e
+    section 6); the SAM/CLIP model hook is disclosed in ``docs/plans/09``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    #: Sample every N-th frame (one ffmpeg pass); bounds runtime on long captures.
+    frame_stride: int = Field(default=60, ge=1)
+    max_frames: int = Field(default=200, ge=1)
+    # Depth/confidence gates (mirror the stage-1 evidence gates).
+    confidence_min: int = Field(default=1, ge=0, le=2)
+    min_depth_m: float = Field(default=0.30, gt=0.0)
+    max_depth_m: float = Field(default=6.00, gt=0.0)
+    # Surface projection.
+    surface_tol_m: float = Field(default=0.08, gt=0.0)  # |n.p + d| to belong to a wall
+    wall_band_m: tuple[float, float] = (0.20, 2.20)  # height band kept on a wall
+    cell_m: float = Field(default=0.05, gt=0.0)  # surface evidence grid
+    min_cell_count: int = Field(default=3, ge=1)  # samples before a cell is trusted
+    min_region_cells: int = Field(default=6, ge=1)
+    min_region_area_m2: float = Field(default=0.02, gt=0.0)
+    # Colour heuristics (RGB 0-255) - disclosed, uncalibrated.
+    mold_max_lum: float = Field(default=95.0, ge=0.0, le=255.0)
+    mold_max_sat: float = Field(default=0.40, ge=0.0, le=1.0)
+    stain_min_rb: float = Field(default=18.0, ge=0.0)  # R - B (yellow/brown tint)
+    stain_max_lum: float = Field(default=205.0, ge=0.0, le=255.0)
+    crack_min_grad: float = Field(default=45.0, ge=0.0)
+    crack_min_length_m: float = Field(default=0.30, gt=0.0)
+    crack_min_aspect: float = Field(default=2.5, ge=1.0)
+    peel_min_grad: float = Field(default=30.0, ge=0.0)
+    peel_min_area_m2: float = Field(default=0.03, gt=0.0)
+    #: Fixed per-region detection confidence until 04f calibrates it.
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    #: Relative half-width on a damage extent interval (S8, 04f).
+    extent_rel_ci: float = Field(default=0.25, ge=0.0)
+    # Concealed-damage rule thresholds (plan 04e section 3).
+    moisture_area_m2: float = Field(default=0.30, gt=0.0)
+    struct_crack_len_m: float = Field(default=1.00, gt=0.0)
+    bio_area_m2: float = Field(default=0.50, gt=0.0)
+    opening_proximity_m: float = Field(default=1.00, gt=0.0)
+
+
 class Outline(BaseModel):
     """Three-stage room-outline thresholds (plan 04i).
 
@@ -144,6 +191,7 @@ class Config(BaseModel):
     loop_closure: bool = True
     calibration: Calibration = Field(default_factory=Calibration)
     outline: Outline = Field(default_factory=Outline)
+    damage: DamageConfig = Field(default_factory=DamageConfig)
 
 
 def load_config(path: str | Path | None = None, **overrides: Any) -> Config:

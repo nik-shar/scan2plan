@@ -131,6 +131,20 @@ def test_run_writes_computed_plan(make_lidar_bundle, tmp_path: Path) -> None:
     assert (out_dir / cap.name / "plan.svg").is_file()
 
 
+def test_run_emits_stitch_and_damage_artifacts(make_lidar_bundle, tmp_path: Path) -> None:
+    cap = make_lidar_bundle(tmp_path, n_frames=2)
+    out_dir = tmp_path / "out"
+    result = runner.invoke(app, ["run", str(cap), "--out", str(out_dir)])
+    assert result.exit_code == 0
+    cap_dir = out_dir / cap.name
+    plan = json.loads((cap_dir / "plan.json").read_text())
+    assert "stitch" in plan  # S4 populated the CIR stitch block
+    assert validate_plan(plan) == []
+    assert (cap_dir / "damage.json").is_file()  # S5-S7 sidecar
+    assert (cap_dir / "ablation.svg").is_file()  # G-DRIFT on/off figure
+    assert (cap_dir / "plan.svg").is_file()
+
+
 def test_validate_accepts_valid_plan(tmp_path: Path, valid_plan_dict: dict) -> None:
     plan = tmp_path / "plan.json"
     plan.write_text(json.dumps(valid_plan_dict))

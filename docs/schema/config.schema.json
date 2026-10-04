@@ -123,6 +123,40 @@
         "ceiling_global_tol_m": { "type": "number", "minimum": 0, "default": 0.3 },
         "overlap_tol_m2": { "type": "number", "minimum": 0, "default": 0.0001 }
       }
+    },
+    "damage": {
+      "description": "Damage-assessment thresholds (plan 04e, OUT-3/4/5). Every number that decides a damage region, a concealed flag or a scope quantity lives here.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "frame_stride": { "type": "integer", "minimum": 1, "default": 60 },
+        "max_frames": { "type": "integer", "minimum": 1, "default": 200 },
+        "confidence_min": { "type": "integer", "minimum": 0, "maximum": 2, "default": 1 },
+        "min_depth_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.3 },
+        "max_depth_m": { "type": "number", "exclusiveMinimum": 0, "default": 6.0 },
+        "surface_tol_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.08 },
+        "wall_band_m": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" }, "default": [0.2, 2.2] },
+        "cell_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.05 },
+        "min_cell_count": { "type": "integer", "minimum": 1, "default": 3 },
+        "min_region_cells": { "type": "integer", "minimum": 1, "default": 6 },
+        "min_region_area_m2": { "type": "number", "exclusiveMinimum": 0, "default": 0.02 },
+        "mold_max_lum": { "type": "number", "minimum": 0, "maximum": 255, "default": 95.0 },
+        "mold_max_sat": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.4 },
+        "stain_min_rb": { "type": "number", "minimum": 0, "default": 18.0 },
+        "stain_max_lum": { "type": "number", "minimum": 0, "maximum": 255, "default": 205.0 },
+        "crack_min_grad": { "type": "number", "minimum": 0, "default": 45.0 },
+        "crack_min_length_m": { "type": "number", "exclusiveMinimum": 0, "default": 0.3 },
+        "crack_min_aspect": { "type": "number", "minimum": 1, "default": 2.5 },
+        "peel_min_grad": { "type": "number", "minimum": 0, "default": 30.0 },
+        "peel_min_area_m2": { "type": "number", "exclusiveMinimum": 0, "default": 0.03 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
+        "extent_rel_ci": { "type": "number", "minimum": 0, "default": 0.25 },
+        "moisture_area_m2": { "type": "number", "exclusiveMinimum": 0, "default": 0.3 },
+        "struct_crack_len_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "bio_area_m2": { "type": "number", "exclusiveMinimum": 0, "default": 0.5 },
+        "opening_proximity_m": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
+      }
     }
   }
 }

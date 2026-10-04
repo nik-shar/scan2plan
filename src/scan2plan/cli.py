@@ -3,11 +3,15 @@
 Command shapes are declared in ``docs/plans/02-foundation-repo-and-infra.md``
 section 4 and owned by ``docs/plans/04g-output-render-cli.md`` section 1.
 
-Current state (plan 04i cleanup): stages beyond stage 1 are **being redesigned**
-(stage 2/3 moved to ``archive/old_stage23/``). ``scan2plan run`` therefore writes
-the stage-1 observed-evidence artifacts and a **stub** ``plan.json`` with
-``status="not_computed"`` that still validates against the I3 schema, so the
-pipeline completes end-to-end. ``validate`` is fully implemented against I3.
+Current state: the LiDAR tier runs end to end. ``scan2plan run`` performs
+S1 ingest -> S2 recon -> S3 rooms -> S4 stitch + drift ablation (G-DRIFT) ->
+S5-S7 damage/concealed/scope, then writes a schema-valid ``plan.json``
+(``status="computed"``), ``plan.svg`` (with a damage overlay) and
+``ablation.svg``, alongside ``stage1_observed.*``, ``stage2_walls.*``,
+``stage3_rooms.json`` and ``damage.json``. ``ablate`` emits the same artifacts
+with the loop-closure on/off footprints. ``validate`` checks a plan against I3.
+``bench``/``report`` (plans 08/09) and the photo/video recon front-ends (04b)
+remain pending.
 """
 
 from __future__ import annotations
@@ -20,16 +24,24 @@ import numpy as np
 import typer
 
 from scan2plan import __version__
-from scan2plan.cir import CIR, Measurement, Opening, Room, Surface
+from scan2plan.cir import CIR, Measurement, Room
 from scan2plan.cir.validate import validate_plan
 from scan2plan.config import Config, load_config
+from scan2plan.damage import Assessment, assess
 from scan2plan.geometry import observed_evidence, reconstruct_walls
 from scan2plan.geometry.invariants import check_stage3_invariants, invariants_failed
+from scan2plan.geometry.plan_geometry import build_connector_openings, build_wall_surfaces
 from scan2plan.geometry.planes import horizontal_planes
 from scan2plan.geometry.rooms import build_stage3
 from scan2plan.ingest import ingest_capture, load_bundle
 from scan2plan.recon import UnsupportedTierError, run_recon
-from scan2plan.render import render_evidence_svg, render_plan_svg, render_walls_svg
+from scan2plan.render import (
+    render_ablation_svg,
+    render_evidence_svg,
+    render_plan_svg,
+    render_walls_svg,
+)
+from scan2plan.stitch.wire import ablation_transforms, stitch_plan
 from scan2plan.util.logging import get_logger
 
 logger = get_logger("scan2plan.cli")
@@ -289,9 +301,7 @@ def _stage3_artifacts(cir: CIR, out_dir: Path, cfg: Config) -> dict[str, object]
         "room_height_m": round(ceil_y - floor_y, 4) if ceil_y is not None else None,
     }
     (out_dir / "stage3_rooms.json").write_text(json.dumps(stage3, indent=2, sort_keys=True) + "\n")
-    render_plan_svg(
-        stage3, out_dir / "plan.svg", stage2=stage2, title=f"{cir.session.id} - final plan"
-    )
+    # plan.svg is rendered later, once the stitch + damage layers exist (04g/04e).
     return stage3
 
 
@@ -324,7 +334,7 @@ def _cir_from_stage3(cir: CIR, stage3: dict[str, object]) -> None:
     """Populate rooms/surfaces/openings/measures from the stage-3 payload (I2/I3)."""
     rooms = stage3.get("rooms") or []
     assert isinstance(rooms, list)
-    surfaces: list[Surface] = []
+    surfaces = build_wall_surfaces(stage3)
     measures: list[Measurement] = []
     for r in rooms:
         rid = str(r["id"])
@@ -352,10 +362,8 @@ def _cir_from_stage3(cir: CIR, stage3: dict[str, object]) -> None:
         cir.rooms.append(Room(id=rid, boundary=boundary, floor_area=area_m, ceiling_height=ceil_m))
         measures.extend([area_m, ceil_m])
         for k, wl in enumerate(r["wall_lengths"], start=1):
-            sid = f"{rid}_wall_{k}"
-            surfaces.append(Surface(id=sid, room_id=rid, type="wall", polygon=[]))
             wl_m = _measure(
-                f"{sid}.length",
+                f"{rid}_wall_{k}.length",
                 "wall_length",
                 float(wl["length_m"]),
                 float(wl["ci_low_m"]),
@@ -366,49 +374,15 @@ def _cir_from_stage3(cir: CIR, stage3: dict[str, object]) -> None:
             wl_m.sources = [str(wl["provenance"])]
             measures.append(wl_m)
     cir.surfaces.extend(surfaces)
-    surface_ids = {s.id for s in surfaces}
-    openings = stage3.get("openings") or []
-    assert isinstance(openings, list)
+    # Paired connector openings (one per joined room) so the stitcher can match
+    # the same physical door from both sides (plan 04d task S-1).
+    openings = build_connector_openings(stage3, surfaces, tier=cir.session.tier)
+    cir.openings.extend(openings)
     for o in openings:
-        joins = o.get("rooms")
-        if not joins:
-            continue  # an opening with no two rooms cannot be keyed to a surface (I3 rule 3)
-        rid = str(joins[0])
-        host = next((s for s in surfaces if s.room_id == rid), None)
-        if host is None or host.id not in surface_ids:
-            continue
-        width = float(o["width_m"])
-        w_m = _measure(
-            f"{o['id']}.width",
-            "opening_width",
-            width,
-            width * 0.9,
-            width * 1.1,
-            "camera_path_cross",
-            cir,
-        )
-        w_m.sources = [str(o["provenance"])]
-        height_val = float(next((r["ceiling"]["value"] for r in rooms if str(r["id"]) == rid), 2.4))
-        h_m = _measure(
-            f"{o['id']}.height",
-            "opening_height",
-            height_val,
-            height_val * 0.95,
-            height_val * 1.05,
-            "prior",
-            cir,
-        )
-        cir.openings.append(
-            Opening(
-                id=str(o["id"]),
-                room_id=rid,
-                surface_id=host.id,
-                kind=str(o["kind"]),
-                width=w_m,
-                height=h_m,
-            )
-        )
-        measures.extend([w_m, h_m])
+        if o.width is not None:
+            measures.append(o.width)
+        if o.height is not None:
+            measures.append(o.height)
     cir.measures = measures
 
 
@@ -434,15 +408,42 @@ def _write_stub_plan(cir: CIR, out_dir: Path) -> Path:
     return plan_path
 
 
-def _write_plan(cir: CIR, stage3: dict[str, object], out_dir: Path) -> Path:
-    """Write a schema-valid, status=computed plan.json populated from stage 3."""
+def _finalize_plan(
+    cir: CIR,
+    stage3: dict[str, object],
+    out_dir: Path,
+    cfg: Config,
+    capture_dir: Path,
+) -> tuple[Path, object, Assessment]:
+    """Build geometry, stitch (S4), assess damage (S5-S7) and emit plan.json + SVGs.
+
+    Populates ``cir`` with rooms/surfaces/openings/measures (S3), the stitched
+    plan + drift ablation (S4) and the damage/concealed/scope layers (S5-S7), then
+    writes a schema-valid ``plan.json`` (I3), ``plan.svg`` and ``ablation.svg``.
+    """
     cir.status = "computed"
     cir.rooms = []
     cir.surfaces = []
     cir.openings = []
     cir.measures = []
     cir.stitch = None
+    cir.damages = []
+    cir.concealed = []
+    cir.scope = []
     _cir_from_stage3(cir, stage3)
+
+    stitch = stitch_plan(cir, cfg)
+    cir.stitch = stitch
+
+    floor_y = float((stage3.get("stage1_reference") or {}).get("floor_y_m") or 0.0)  # type: ignore[union-attr]
+    assessment = assess(cir, capture_dir, cfg, out_dir, floor_y=floor_y)
+    cir.damages = assessment.damages
+    cir.concealed = assessment.concealed
+    cir.scope = assessment.scope
+    for item in assessment.scope:
+        if item.quantity is not None:
+            cir.measures.append(item.quantity)
+
     plan_path = out_dir / "plan.json"
     plan_path.write_text(cir.model_dump_json(exclude_none=True, indent=2))
     errors = validate_plan(json.loads(plan_path.read_text()))
@@ -450,7 +451,29 @@ def _write_plan(cir: CIR, stage3: dict[str, object], out_dir: Path) -> Path:
         for err in errors:
             typer.secho(f"  - {err}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
-    return plan_path
+
+    stage2_path = out_dir / "stage2_walls.json"
+    stage2 = json.loads(stage2_path.read_text()) if stage2_path.is_file() else None
+    render_plan_svg(
+        stage3,
+        out_dir / "plan.svg",
+        stage2=stage2,
+        title=f"{cir.session.id} - final plan",
+        damages=cir.damages,
+        surfaces=cir.surfaces,
+        concealed=cir.concealed,
+    )
+    try:
+        render_ablation_svg(
+            stage3,
+            ablation_transforms(cir),
+            stitch.ablation,
+            out_dir / "ablation.svg",
+            title=f"{cir.session.id} - drift ablation (G-DRIFT)",
+        )
+    except Exception as exc:  # pragma: no cover - rendering must never fail the run
+        typer.secho(f"  warn: ablation.svg not rendered: {exc}", fg=typer.colors.YELLOW, err=True)
+    return plan_path, stitch, assessment
 
 
 def _report_stage3(stage3: dict[str, object] | None, out_dir: Path) -> None:
@@ -478,6 +501,44 @@ def _report_stage3(stage3: dict[str, object] | None, out_dir: Path) -> None:
     typer.echo(f"  wrote {out_dir / 'plan.svg'}")
 
 
+def _report_stitch(stitch: object, out_dir: Path) -> None:
+    """Print the S4 stitch + drift-ablation summary (shared by ``run``/``ablate``)."""
+    if stitch is None:
+        return
+    rt = getattr(stitch, "room_transforms", {})
+    edges = getattr(stitch, "edges", [])
+    closures = getattr(stitch, "closures", [])
+    ab = getattr(stitch, "ablation", None)
+    typer.echo(
+        f"  stage 4 stitch: {len(rt)} rooms | connectors {len(edges)} | "
+        f"closures {len(closures)} | overlap_ok {getattr(stitch, 'overlap_ok', None)} | "
+        f"unstitched {getattr(stitch, 'unstitched', None)}"
+    )
+    if ab is not None:
+        on = getattr(ab, "loop_closure_on", None)
+        off = getattr(ab, "off", None)
+        typer.echo(
+            f"  stage 4 ablation: footprint on {getattr(on, 'footprint_m2', None)} m2, "
+            f"off {getattr(off, 'footprint_m2', None)} m2 | closure gap "
+            f"{getattr(on, 'closure_gap_m', None)} m"
+        )
+    typer.echo(f"  wrote {out_dir / 'ablation.svg'}")
+
+
+def _report_damage(assessment: Assessment, out_dir: Path) -> None:
+    """Print the S5-S7 damage / concealed / scope summary."""
+    rep = assessment.report
+    by_class = rep.get("by_class") or {}
+    typer.echo(
+        f"  stage 5-7 damage: {rep.get('damage_count')} regions "
+        f"({by_class}) | concealed {rep.get('concealed_count')} | "
+        f"scope items {rep.get('scope_count')}"
+    )
+    for w in rep.get("warnings") or []:  # type: ignore[union-attr]
+        typer.secho(f"  warn: {w}", fg=typer.colors.YELLOW, err=True)
+    typer.echo(f"  wrote {out_dir / 'damage.json'}")
+
+
 @app.command()
 def run(
     capture_dir: Annotated[
@@ -492,11 +553,12 @@ def run(
     stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
     voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Run S1+S2, write the stage-1 observed-evidence artifacts and a stub plan.
+    """Run the whole capture (one command per capture, I5).
 
-    Stages beyond stage 1 are being redesigned (plan 04i): the emitted ``plan.json``
-    is schema-valid with ``status="not_computed"`` and carries the sensory ingest +
-    recon only. Stage-1 evidence is written to ``stage1_observed.{json,svg}``.
+    S1 ingest -> S2 recon -> S3 rooms -> S4 stitch + drift ablation -> S5-S7
+    damage/concealed/scope, then a schema-valid ``plan.json`` (I3), ``plan.svg``
+    (with damage overlay) and ``ablation.svg``. Writes ``stage1_observed.*``,
+    ``stage2_walls.*``, ``stage3_rooms.json`` and ``damage.json`` alongside.
     """
     cfg = load_config(config, output_dir=str(out) if out is not None else None)
     bundle = load_bundle(capture_dir)
@@ -511,9 +573,12 @@ def run(
         stage1 = {"layer_counts": {}, "warnings": [str(exc)]}
     stage2 = _stage2_artifacts(cir, out_dir, cfg)
     stage3 = _stage3_artifacts(cir, out_dir, cfg)
-    plan_path = (
-        _write_plan(cir, stage3, out_dir) if stage3 is not None else _write_stub_plan(cir, out_dir)
-    )
+    stitch = None
+    assessment = None
+    if stage3 is not None:
+        plan_path, stitch, assessment = _finalize_plan(cir, stage3, out_dir, cfg, Path(capture_dir))
+    else:
+        plan_path = _write_stub_plan(cir, out_dir)
 
     quality = cir.recon.quality
     typer.echo(
@@ -535,9 +600,12 @@ def run(
     typer.echo(f"  wrote {out_dir / 'stage1_observed.svg'}")
     _report_stage2(stage2, out_dir)
     _report_stage3(stage3, out_dir)
+    _report_stitch(stitch, out_dir)
+    if assessment is not None:
+        _report_damage(assessment, out_dir)
     _report_invariants(stage3)
     typer.echo(f"  wrote {plan_path}")
-    typer.echo("  note: stitch/damage/calibration (S4-S8) are pending; rooms are stage 3.")
+    typer.echo("  note: calibration (S8) is pending; stitch (S4) and damage (S5-S7) are computed.")
     if stage3 is not None and int(stage3.get("invariants_failed") or 0):
         raise typer.Exit(code=1)
 
@@ -581,11 +649,12 @@ def ablate(
     stride: Annotated[int, typer.Option("--stride", help="Recon frame stride.")] = 20,
     voxel_cm: Annotated[float, typer.Option("--voxel-cm", help="Recon voxel size (cm).")] = 1.0,
 ) -> None:
-    """Drift ablation (G-DRIFT) - pending the stage 2/3 redesign.
+    """Drift ablation (G-DRIFT): the on/off footprints from one code path.
 
-    The ablation needs room geometry to stitch, which is being redesigned (plan
-    04i). ``ablate`` now emits the stage-1 evidence + a stub plan so the capture is
-    still inspectable, and reports honestly that the ablation is not computed.
+    Runs the full pipeline (S1-S7) and writes ``ablation.svg`` comparing the
+    loop-closure ON/OFF stitched footprints; the CIR ``stitch.ablation`` block
+    carries both numbers, so "poses used as-is" is demonstrably not the policy
+    (plan 04d section 3).
     """
     if feature != "loop_closure":
         typer.secho(
@@ -606,18 +675,17 @@ def ablate(
         typer.secho(f"  stage 1: {exc}", fg=typer.colors.YELLOW, err=True)
     _report_stage2(_stage2_artifacts(cir, out_dir, cfg), out_dir)
     stage3 = _stage3_artifacts(cir, out_dir, cfg)
-    _report_stage3(stage3, out_dir)
-    _report_invariants(stage3)
+    stitch = None
+    assessment = None
     if stage3 is not None:
-        _write_plan(cir, stage3, out_dir)
+        _plan, stitch, assessment = _finalize_plan(cir, stage3, out_dir, cfg, capture_dir)
     else:
         _write_stub_plan(cir, out_dir)
-    typer.secho(
-        "  ablation not computed: drift ablation depends on the stitch stage (04d). "
-        "Wrote stage-1 evidence + stage-2 walls + stage-3 rooms + plan instead.",
-        fg=typer.colors.YELLOW,
-        err=True,
-    )
+    _report_stage3(stage3, out_dir)
+    _report_stitch(stitch, out_dir)
+    if assessment is not None:
+        _report_damage(assessment, out_dir)
+    _report_invariants(stage3)
     if stage3 is not None and int(stage3.get("invariants_failed") or 0):
         raise typer.Exit(code=1)
 

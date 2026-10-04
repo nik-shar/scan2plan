@@ -4,6 +4,61 @@ Honest milestone log (plan 07 PR-4). Newest first.
 
 ## Unreleased
 
+### 09 — submission docs: compliance matrix, technical report, reproduction bundle
+- `docs/compliance-matrix.md` (deliverable 1, 10 %): every requirement ID
+  (CAP/OUT/G-/BM/PR/interface/deliverable) mapped to file path + artifact + honest
+  status, plus the disclosure list (no pretrained model/API/dataset is used) and a
+  coverage summary. Declares the LiDAR-only scope rather than overclaiming.
+- `docs/technical-report.md` (deliverable 7, ≤6 pp): architecture, tier design +
+  device matrix, drift handling, error budget, calibration analysis, fix-loop story
+  (with the before/after numbers), known failure modes and honest limitations.
+- `repro/README.md` + `scripts/reproduce.sh` (deliverable 4): one command
+  regenerates the B-0 depth-unit evidence and the full S1–S7 artifacts for the
+  seeds, schema-validates every `plan.json`, and prints the reported numbers.
+  Verified end to end on `single_room/c00a170fe1` (4 rooms, 4 openings, coverage
+  1.0, 0 invariant failures, 2 connectors, 19 damage regions).
+- README links the deliverables. Still pending and disclosed: benchmark report,
+  fix-loop bundle, head-to-head, photos/video recon (blocked on laser ground truth
+  / a consumer-app capture / the non-LiDAR tiers).
+
+### 04e — damage, concealed flags & scope line items (S5–S7)
+- New `src/scan2plan/damage/`: `frames.py` (depth/conf PNG + one-pass `ffmpeg`
+  RGB decode scaled to the depth grid), `evidence.py` (back-project gated pixels,
+  assign to the nearest wall plane, accumulate colour on a per-surface
+  `(height, along-wall)` grid), `detect.py` (disclosed colour heuristics ->
+  `Damage`: dark/desaturated clusters = `mold`, R−B tint = `water_stain`,
+  thin high-gradient runs = `crack`, fragmented edges = `paint_peel`; priority-
+  resolved masks + 8-connected components), `rules.py` (versioned concealed rule
+  engine `R-CONCEAL-{MOIST,STRUCT,BIO}-01` emitting the id that fired),
+  `scope.py` (damage -> repair task with a `Measurement` quantity), and
+  `assess.py` (orchestrator writing `damage.json` with every threshold).
+- `scan2plan.geometry.plan_geometry` builds real wall `Surface`s (world 2-point
+  polygon + inward plane) and **paired** connector `Opening`s (one per joined
+  room) from the stage-3 payload, so both the stitcher and the damage layer key
+  to surfaces instead of empty placeholders.
+- New I4 `damage` config block (`DamageConfig`) + `config.schema.json` mirror
+  (kept in sync by `tests/test_schema.py`); every threshold is recorded in
+  `damage.json`.
+- No ML runtime required (disclosed heuristic); the SAM/CLIP hook stays
+  documented in `docs/plans/09`. `spalling`/`rot` stay in the taxonomy but need
+  the model hook. `tests/test_damage.py` (9).
+
+### 04d — stitch + drift ablation wired into the pipeline (G-DRIFT)
+- New `src/scan2plan/stitch/wire.py`: `stitch_plan` runs the SE(2) pose graph
+  (connector matching) and attaches the loop-closure on/off `ablation`, and
+  `ablation_transforms` exposes both placement passes for the figure.
+- `rooms_connected` re-derives "unstitched" from **geometric adjacency** (shared
+  wall polygons) rather than only the connector graph, which is the wrong
+  criterion for a single capture whose rooms share one reconstruction frame; the
+  flag now survives only when a room is truly isolated (I3 rule 4).
+- `scan2plan run` populates `cir.stitch` (edges/closures/overlap_ok/ablation);
+  `scan2plan ablate` emits the real on/off footprints. New
+  `render_ablation_svg` draws the two panels side by side, and `plan.svg` gains a
+  damage/concealed overlay. `tests/test_stitch_wire.py` (6).
+- Seeds: `c00a170fe1` 4 rooms (2 connectors, overlap_ok, unstitched false),
+  `1a8384c3f6` 3 rooms (2 connectors), ablation on==off (no revisits in a single
+  shared-frame capture) — reported honestly.
+
 ### 03 — capture route: bundle builder, capture QA, one command per capture
 - New `src/scan2plan/ingest/build.py` (+ `scripts/build_bundle.sh`): normalise a raw
   LiDAR-logger export into a conformant interface-I1 bundle. Handles depth in mm or m
